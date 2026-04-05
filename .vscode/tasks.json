@@ -65,7 +65,7 @@
         {
             "label": "build",
             "group": "build",
-            "detail": "Build decky-plugin-template",
+            "detail": "Build decky-plugin",
             "dependsOrder": "sequence",
             "dependsOn": [
                 "setup",

@@ -1,7 +1,7 @@
 {
-  "name": "Example Plugin",
+  "name": "Xbox Achievements",
   "author": "John Doe",
-  "flags": ["debug", "_root"],
+  "flags": ["debug"],
   "api_version": 1,
   "publish": {
     "tags": ["template", "root"],

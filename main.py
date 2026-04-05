@@ -1,57 +1,71 @@
+import json
 import os
+from typing import Any, Dict
 
-# The decky plugin module is located at decky-loader/plugin
-# For easy intellisense checkout the decky-loader code repo
-# and add the `decky-loader/plugin/imports` path to `python.analysis.extraPaths` in `.vscode/settings.json`
 import decky
-import asyncio
+
+SETTINGS_FILE = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
+
+DEFAULT_SETTINGS: Dict[str, Any] = {
+    "preset": "xbox",
+    "primaryColor": "#107C10",
+    "secondaryColor": "#0e6b0e",
+    "accentColor": "#52b043",
+    "textColor": "#ffffff",
+    "descColor": "#a0d9a0",
+    "glowEnabled": True,
+    "glowIntensity": 20,
+    "borderRadius": 12,
+    "duration": 6000,
+    "iconBorder": True,
+    "iconShape": "circle",
+    "bannerStyle": "gradient",
+    "rarityEffects": True,
+}
+
 
 class Plugin:
-    # A normal method. It can be called from the TypeScript side using @decky/api.
-    async def add(self, left: int, right: int) -> int:
-        return left + right
+    async def get_settings(self) -> dict:
+        if not os.path.exists(SETTINGS_FILE):
+            return DEFAULT_SETTINGS.copy()
 
-    async def long_running(self):
-        await asyncio.sleep(15)
-        # Passing through a bunch of random data, just as an example
-        await decky.emit("timer_event", "Hello from the backend!", True, 2)
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+        except (json.JSONDecodeError, OSError) as error:
+            decky.logger.error(f"Failed to load settings, using defaults: {error}")
+            return DEFAULT_SETTINGS.copy()
 
-    # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
+        if not isinstance(saved, dict):
+            decky.logger.warning("Settings file did not contain an object, using defaults")
+            return DEFAULT_SETTINGS.copy()
+
+        return {**DEFAULT_SETTINGS, **saved}
+
+    async def save_settings(self, settings: dict) -> bool:
+        merged = {**DEFAULT_SETTINGS, **settings}
+        os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(merged, f, indent=2)
+
+        return True
+
+    async def get_default_settings(self) -> dict:
+        return DEFAULT_SETTINGS.copy()
+
     async def _main(self):
-        self.loop = asyncio.get_event_loop()
-        decky.logger.info("Hello World!")
+        decky.logger.info("Xbox Achievements plugin loaded")
 
-    # Function called first during the unload process, utilize this to handle your plugin being stopped, but not
-    # completely removed
     async def _unload(self):
-        decky.logger.info("Goodnight World!")
-        pass
+        decky.logger.info("Xbox Achievements plugin unloaded")
 
-    # Function called after `_unload` during uninstall, utilize this to clean up processes and other remnants of your
-    # plugin that may remain on the system
     async def _uninstall(self):
-        decky.logger.info("Goodbye World!")
-        pass
+        if os.path.exists(SETTINGS_FILE):
+            os.remove(SETTINGS_FILE)
 
-    async def start_timer(self):
-        self.loop.create_task(self.long_running())
-
-    # Migrations that should be performed before entering `_main()`.
     async def _migration(self):
         decky.logger.info("Migrating")
-        # Here's a migration example for logs:
-        # - `~/.config/decky-template/template.log` will be migrated to `decky.decky_LOG_DIR/template.log`
-        decky.migrate_logs(os.path.join(decky.DECKY_USER_HOME,
-                                               ".config", "decky-template", "template.log"))
-        # Here's a migration example for settings:
-        # - `~/homebrew/settings/template.json` is migrated to `decky.decky_SETTINGS_DIR/template.json`
-        # - `~/.config/decky-template/` all files and directories under this root are migrated to `decky.decky_SETTINGS_DIR/`
         decky.migrate_settings(
-            os.path.join(decky.DECKY_HOME, "settings", "template.json"),
-            os.path.join(decky.DECKY_USER_HOME, ".config", "decky-template"))
-        # Here's a migration example for runtime data:
-        # - `~/homebrew/template/` all files and directories under this root are migrated to `decky.decky_RUNTIME_DIR/`
-        # - `~/.local/share/decky-template/` all files and directories under this root are migrated to `decky.decky_RUNTIME_DIR/`
-        decky.migrate_runtime(
-            os.path.join(decky.DECKY_HOME, "template"),
-            os.path.join(decky.DECKY_USER_HOME, ".local", "share", "decky-template"))
+            os.path.join(decky.DECKY_HOME, "settings", "xbox-achievements.json")
+        )
