@@ -15,6 +15,7 @@ import {
   toaster,
   injectCssIntoTab,
   removeCssFromTab,
+  executeInTab,
 } from "@decky/api";
 import { useEffect, useState } from "react";
 import { FaPalette } from "react-icons/fa";
@@ -326,11 +327,12 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
     ? `box-shadow: 0 0 ${s.glowIntensity}px ${accent}88, 0 0 ${s.glowIntensity * 3}px ${accent}44 !important;`
     : "";
 
-  const bg = s.bannerStyle === "solid"
-    ? `background: ${s.primaryColor} !important;`
-    : s.bannerStyle === "glass"
-      ? `background: ${s.primaryColor}cc !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important;`
-      : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
+  const bg =
+    s.bannerStyle === "solid"
+      ? `background: ${s.primaryColor} !important;`
+      : s.bannerStyle === "glass"
+        ? `background: ${s.primaryColor}cc !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important;`
+        : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
 
   return `
     .xbox-achievement-toast {
@@ -338,10 +340,19 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
       border: 2px solid ${accent} !important;
       border-radius: ${s.borderRadius}px !important;
       ${glow}
+      padding: 8px 10px !important;
     }
+
     .xbox-achievement-toast > div {
       background: transparent !important;
     }
+
+    .xbox-achievement-toast img {
+      border-radius: ${iconRadius(s.iconShape)} !important;
+      border: ${s.iconBorder ? `2px solid ${accent}` : "none"} !important;
+      box-shadow: ${s.iconBorder ? `0 0 8px ${accent}66` : "none"} !important;
+    }
+
     ${rarity?.extraCSS || ""}
   `;
 }
@@ -349,7 +360,74 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
 let currentSettings: ThemeSettings = { preset: "xbox", ...PRESETS.xbox };
 let currentPageCssId: string | null = null;
 
-function reinjectPageCSS(s: ThemeSettings): void {
+function buildNativeToastCSS(s: ThemeSettings): string {
+  const ir = iconRadius(s.iconShape);
+  const glow = s.glowEnabled
+    ? `box-shadow: 0 0 ${s.glowIntensity}px ${s.accentColor}88, 0 0 ${s.glowIntensity * 3}px ${s.accentColor}44 !important;`
+    : "";
+
+  const bg =
+    s.bannerStyle === "solid"
+      ? `background: ${s.primaryColor} !important;`
+      : s.bannerStyle === "glass"
+        ? `background: ${s.primaryColor}cc !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important;`
+        : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
+
+  return `
+    div[role="alert"] > .Panel,
+    div[role="alert"] > .Panel.Focusable,
+    div[role="alert"] > [role="button"] {
+      ${bg}
+      border: 2px solid ${s.accentColor} !important;
+      border-radius: ${s.borderRadius}px !important;
+      padding: 10px 14px !important;
+      ${glow}
+    }
+
+    div[role="alert"] ._1fEbX-PfpZ2FhkhttWcm-V,
+    div[role="alert"] ._2V2sHETNfa62yMoDwSF3_t {
+      border-radius: ${ir} !important;
+      overflow: hidden !important;
+    }
+
+    div[role="alert"] ._2V2sHETNfa62yMoDwSF3_t {
+      border: ${s.iconBorder ? `2px solid ${s.accentColor}` : "none"} !important;
+      box-shadow: ${s.iconBorder ? `0 0 8px ${s.accentColor}66` : "none"} !important;
+    }
+
+    div[role="alert"] ._18PwvOcpWfW3M8j2-bEPPJ {
+      color: ${s.textColor} !important;
+      font-weight: bold !important;
+    }
+
+    div[role="alert"] ._2jpxEWvo06efD6-NR1cplA {
+      color: ${s.descColor} !important;
+    }
+
+    div[role="alert"] ._2F0wqsu2mqsHxBSJcu1sPJ,
+    div[role="alert"] ._2F0wqsu2mqsHxBSJcu1sPJ svg {
+      color: ${s.accentColor} !important;
+      fill: currentColor !important;
+    }
+  `;
+}
+
+function injectNotifCSS(s: ThemeSettings): void {
+  const css = buildNativeToastCSS(s);
+  const escaped = css.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
+  executeInTab("notificationtoasts_uid2", false, `
+    (function() {
+      var el = document.getElementById("xbox-achievements-notif-css");
+      if (el) el.remove();
+      var style = document.createElement("style");
+      style.id = "xbox-achievements-notif-css";
+      style.textContent = \`${escaped}\`;
+      document.head.appendChild(style);
+    })();
+  `).catch(() => {});
+}
+
+function reinjectAllCSS(s: ThemeSettings): void {
   if (currentPageCssId) {
     removeCssFromTab("Steam Big Picture Mode", currentPageCssId);
   }
@@ -358,6 +436,10 @@ function reinjectPageCSS(s: ThemeSettings): void {
     "Steam Big Picture Mode",
     buildAchievementPageCSS(s),
   );
+
+  injectNotifCSS(s);
+  // Retry in case the notification tab isn't ready yet at startup
+  setTimeout(() => injectNotifCSS(s), 5000);
 }
 
 function saveSettingsSafe(settings: ThemeSettings): void {
@@ -366,11 +448,90 @@ function saveSettingsSafe(settings: ThemeSettings): void {
   });
 }
 
-function fireXboxToast(name: string, description: string, imageUrl?: string, globalPct?: number): void {
+const ACHIEVEMENT_BADGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><path d="M30 30.05H26L24 34.05L20.11 27.57L22.9 24.8701L26.9 24.81L30 30.05ZM13.1 24.8701L9.1 24.81L6 30.05H10L12 34.05L15.89 27.57L13.1 24.8701ZM22.5 13.05C22.5 12.16 22.2361 11.29 21.7416 10.55C21.2471 9.80996 20.5443 9.23318 19.7221 8.89259C18.8998 8.552 17.995 8.46288 17.1221 8.63651C16.2492 8.81015 15.4474 9.23873 14.818 9.86807C14.1887 10.4974 13.7601 11.2992 13.5865 12.1721C13.4128 13.0451 13.5019 13.9499 13.8425 14.7721C14.1831 15.5944 14.7599 16.2972 15.4999 16.7917C16.24 17.2861 17.11 17.55 18 17.55C18.5913 17.5514 19.1771 17.4359 19.7236 17.2102C20.2702 16.9845 20.7668 16.6531 21.1849 16.235C21.603 15.8168 21.9345 15.3202 22.1601 14.7737C22.3858 14.2271 22.5013 13.6414 22.5 13.05ZM29 13.05L25.85 16.3L25.78 20.83L21.25 20.9L18 24.05L14.75 20.9L10.22 20.83L10.15 16.3L7 13.05L10.15 9.80005L10.22 5.27005L14.75 5.20005L18 2.05005L21.25 5.20005L25.78 5.27005L25.85 9.80005L29 13.05Z" fill="currentColor"></path></svg>`;
+
+const SAMPLE_ACHIEVEMENT_IMAGE = "https://shared.steamstatic.com/community_assets/images/apps/22380/ee1e9636c2b7d5add9123ef556c80fdd87ba1669.jpg";
+
+function BadgeIcon({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <span
+      style={{ color, width: `${size}px`, height: `${size}px`, display: "inline-flex", flexShrink: 0 }}
+      dangerouslySetInnerHTML={{ __html: ACHIEVEMENT_BADGE_SVG }}
+    />
+  );
+}
+
+function AchievementToastMock({
+  settings,
+  name,
+  description,
+  imageUrl,
+}: {
+  settings: ThemeSettings;
+  name: string;
+  description: string;
+  imageUrl: string;
+}) {
+  const accent = settings.accentColor;
+  const ir = iconRadius(settings.iconShape);
+
+  const bg =
+    settings.bannerStyle === "glass"
+      ? { background: `${settings.primaryColor}cc`, backdropFilter: "blur(10px)" }
+      : settings.bannerStyle === "solid"
+        ? { background: settings.primaryColor }
+        : { background: `linear-gradient(135deg, ${settings.primaryColor}, ${settings.secondaryColor})` };
+
+  return (
+    <div
+      style={{
+        ...bg,
+        border: `2px solid ${accent}`,
+        borderRadius: `${settings.borderRadius}px`,
+        boxShadow: settings.glowEnabled
+          ? `0 0 ${settings.glowIntensity}px ${accent}88, 0 0 ${settings.glowIntensity * 3}px ${accent}44`
+          : "none",
+        padding: "10px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+      }}
+    >
+      <img
+        src={imageUrl}
+        style={{
+          width: "44px",
+          height: "44px",
+          borderRadius: ir,
+          border: settings.iconBorder ? `2px solid ${accent}` : "none",
+          boxShadow: settings.iconBorder ? `0 0 8px ${accent}66` : "none",
+          objectFit: "cover",
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ display: "flex", flexDirection: "column" as const, minWidth: 0, gap: "3px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <BadgeIcon color={accent} size={18} />
+          <span style={{ color: settings.textColor, fontWeight: "bold", fontSize: "14px" }}>{name}</span>
+        </div>
+        <div style={{ color: settings.descColor, fontSize: "12px" }}>{description}</div>
+      </div>
+    </div>
+  );
+}
+
+function fireXboxToast(name: string, description: string, imageUrl: string, globalPct?: number): void {
   const s = currentSettings;
   const rarity = getRarityOverride(globalPct ?? -1, s.rarityEffects);
   const accent = rarity?.accentColor || s.accentColor;
   const ir = iconRadius(s.iconShape);
+
+  const titleRow = (
+    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      <BadgeIcon color={accent} size={18} />
+      <span style={{ color: s.textColor, fontWeight: "bold", fontSize: "14px" }}>{name}</span>
+    </div>
+  );
 
   const titleContent = rarity?.titlePrefix ? (
     <div>
@@ -385,34 +546,29 @@ function fireXboxToast(name: string, description: string, imageUrl?: string, glo
       >
         {rarity.titlePrefix}
       </div>
-      <span style={{ color: s.textColor, fontWeight: "bold" }}>{name}</span>
+      {titleRow}
     </div>
-  ) : (
-    <span style={{ color: s.textColor, fontWeight: "bold" }}>{name}</span>
-  );
+  ) : titleRow;
 
   toaster.toast({
     logo: (
       <>
         <style>{buildToastCSS(s, rarity)}</style>
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: ir,
-              border: s.iconBorder ? `2px solid ${accent}` : "none",
-              boxShadow: s.iconBorder ? `0 0 8px ${accent}66` : "none",
-            }}
-          />
-        ) : (
-          <span style={{ fontSize: "24px" }}>🏆</span>
-        )}
+        <img
+          src={imageUrl}
+          style={{
+            width: "44px",
+            height: "44px",
+            borderRadius: ir,
+            border: s.iconBorder ? `2px solid ${accent}` : "none",
+            boxShadow: s.iconBorder ? `0 0 8px ${accent}66` : "none",
+            objectFit: "cover",
+          }}
+        />
       </>
     ),
     title: titleContent,
-    body: <span style={{ color: s.descColor }}>{description}</span>,
+    body: <span style={{ color: s.descColor, fontSize: "12px" }}>{description}</span>,
     className: "xbox-achievement-toast",
     duration: s.duration,
     playSound: true,
@@ -539,55 +695,13 @@ function ColorButton({
 }
 
 function ThemePreview({ settings }: { settings: ThemeSettings }) {
-  const bg = settings.bannerStyle === "glass"
-    ? { background: `${settings.primaryColor}cc`, backdropFilter: "blur(10px)" }
-    : settings.bannerStyle === "solid"
-      ? { background: settings.primaryColor }
-      : { background: `linear-gradient(135deg, ${settings.primaryColor}, ${settings.secondaryColor})` };
-
-  const ir = iconRadius(settings.iconShape);
-
   return (
-    <div
-      style={{
-        ...bg,
-        border: `2px solid ${settings.accentColor}`,
-        borderRadius: `${settings.borderRadius}px`,
-        boxShadow: settings.glowEnabled
-          ? `0 0 ${settings.glowIntensity}px ${settings.accentColor}88`
-          : "none",
-        padding: "10px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        marginBottom: "8px",
-      }}
-    >
-      <div
-        style={{
-          width: "28px",
-          height: "28px",
-          borderRadius: ir,
-          border: settings.iconBorder ? `2px solid ${settings.accentColor}` : "none",
-          backgroundColor: "rgba(0,0,0,0.3)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "14px",
-          flexShrink: 0,
-        }}
-      >
-        🏆
-      </div>
-      <div>
-        <div style={{ color: settings.textColor, fontWeight: "bold", fontSize: "13px" }}>
-          Achievement Unlocked
-        </div>
-        <div style={{ color: settings.descColor, fontSize: "11px" }}>
-          Preview of your theme
-        </div>
-      </div>
-    </div>
+    <AchievementToastMock
+      settings={settings}
+      name="Achievement Unlocked"
+      description="Preview of your theme"
+      imageUrl={SAMPLE_ACHIEVEMENT_IMAGE}
+    />
   );
 }
 
@@ -613,7 +727,7 @@ function Content() {
     setSettings(next);
     currentSettings = next;
     saveSettingsSafe(next);
-    reinjectPageCSS(next);
+    reinjectAllCSS(next);
   };
 
   const applyPreset = (preset: string) => {
@@ -639,7 +753,7 @@ function Content() {
         <PanelSectionRow>
           <ButtonItem
             layout="below"
-            onClick={() => fireXboxToast("Test Achievement", "You triggered a test notification!")}
+            onClick={() => fireXboxToast("Test Achievement", "You triggered a test notification!", SAMPLE_ACHIEVEMENT_IMAGE)}
           >
             Test Toast
           </ButtonItem>
@@ -647,7 +761,7 @@ function Content() {
         <PanelSectionRow>
           <ButtonItem
             layout="below"
-            onClick={() => fireXboxToast("Diamond Hands", "Less than 1% of players unlocked this!", undefined, 0.5)}
+            onClick={() => fireXboxToast("Diamond Hands", "Less than 1% of players unlocked this!", SAMPLE_ACHIEVEMENT_IMAGE, 0.5)}
           >
             Test Ultra Rare
           </ButtonItem>
@@ -655,7 +769,7 @@ function Content() {
         <PanelSectionRow>
           <ButtonItem
             layout="below"
-            onClick={() => fireXboxToast("Sharpshooter", "Only 5% of players unlocked this!", undefined, 5)}
+            onClick={() => fireXboxToast("Sharpshooter", "Only 5% of players unlocked this!", SAMPLE_ACHIEVEMENT_IMAGE, 5)}
           >
             Test Rare
           </ButtonItem>
@@ -777,7 +891,7 @@ function Content() {
                 setSettings(defaults);
                 currentSettings = defaults;
                 saveSettingsSafe(defaults);
-                reinjectPageCSS(defaults);
+                reinjectAllCSS(defaults);
               });
             }}
           >
@@ -793,16 +907,10 @@ export default definePlugin(() => {
   getSettings()
     .then((settings) => {
       currentSettings = settings;
-      currentPageCssId = injectCssIntoTab(
-        "Steam Big Picture Mode",
-        buildAchievementPageCSS(settings),
-      );
+      reinjectAllCSS(settings);
     })
     .catch(() => {
-      currentPageCssId = injectCssIntoTab(
-        "Steam Big Picture Mode",
-        buildAchievementPageCSS(currentSettings),
-      );
+      reinjectAllCSS(currentSettings);
     });
 
   const steamClient = (globalThis as typeof globalThis & { SteamClient?: SteamClientShape }).SteamClient;
@@ -810,21 +918,25 @@ export default definePlugin(() => {
 
   const register = steamClient?.GameSessions?.RegisterForAchievementNotification;
   if (typeof register === "function") {
-    unregister = register((notification) => {
-      const achieved = extractAchievement(notification);
+    try {
+      unregister = register((notification) => {
+        const achieved = extractAchievement(notification);
 
-      if (!achieved) {
-        console.warn("[XboxAchievements] Unrecognized achievement notification payload", notification);
-        return;
-      }
+        if (!achieved) {
+          console.warn("[XboxAchievements] Unrecognized achievement notification payload", notification);
+          return;
+        }
 
-      fireXboxToast(
-        achieved.strName ?? achieved.strDisplayName ?? "Achievement Unlocked",
-        achieved.strDescription ?? achieved.strDesc ?? "",
-        achieved.strImage ?? achieved.strIcon,
-        typeof achieved.flAchieved === "number" ? achieved.flAchieved : -1,
-      );
-    });
+        fireXboxToast(
+          achieved.strName ?? achieved.strDisplayName ?? "Achievement Unlocked",
+          achieved.strDescription ?? achieved.strDesc ?? "",
+          achieved.strImage ?? achieved.strIcon ?? SAMPLE_ACHIEVEMENT_IMAGE,
+          typeof achieved.flAchieved === "number" ? achieved.flAchieved : -1,
+        );
+      });
+    } catch (e) {
+      console.warn("[XboxAchievements] RegisterForAchievementNotification failed:", e);
+    }
   } else {
     console.warn("[XboxAchievements] RegisterForAchievementNotification is unavailable");
   }
@@ -839,6 +951,10 @@ export default definePlugin(() => {
       if (currentPageCssId) {
         removeCssFromTab("Steam Big Picture Mode", currentPageCssId);
       }
+      executeInTab("notificationtoasts_uid2", false, `
+        var el = document.getElementById("xbox-achievements-notif-css");
+        if (el) el.remove();
+      `).catch(() => {});
     },
   };
 });

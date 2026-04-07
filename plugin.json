@@ -2,7 +2,7 @@
   "name": "Xbox Achievements",
   "author": "John Doe",
   "flags": ["debug"],
-  "api_version": 1,
+  "api_version": 2,
   "publish": {
     "tags": ["template", "root"],
     "description": "Decky example plugin.",
