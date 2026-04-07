@@ -374,6 +374,11 @@ function buildNativeToastCSS(s: ThemeSettings): string {
         : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
 
   return `
+    ._3YTh805w3-xgPkHE_22XcA {
+      overflow: visible !important;
+      background: transparent !important;
+    }
+
     div[role="alert"] > .Panel,
     div[role="alert"] > .Panel.Focusable,
     div[role="alert"] > [role="button"] {
@@ -384,28 +389,33 @@ function buildNativeToastCSS(s: ThemeSettings): string {
       ${glow}
     }
 
-    div[role="alert"] ._1fEbX-PfpZ2FhkhttWcm-V,
-    div[role="alert"] ._2V2sHETNfa62yMoDwSF3_t {
+    .Panel ._1fEbX-PfpZ2FhkhttWcm-V {
       border-radius: ${ir} !important;
       overflow: hidden !important;
-    }
-
-    div[role="alert"] ._2V2sHETNfa62yMoDwSF3_t {
       border: ${s.iconBorder ? `2px solid ${s.accentColor}` : "none"} !important;
       box-shadow: ${s.iconBorder ? `0 0 8px ${s.accentColor}66` : "none"} !important;
     }
 
-    div[role="alert"] ._18PwvOcpWfW3M8j2-bEPPJ {
+    .Panel ._2V2sHETNfa62yMoDwSF3_t {
+      border-radius: ${ir} !important;
+      border: none !important;
+      box-shadow: none !important;
+      display: block !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .Panel ._18PwvOcpWfW3M8j2-bEPPJ {
       color: ${s.textColor} !important;
       font-weight: bold !important;
     }
 
-    div[role="alert"] ._2jpxEWvo06efD6-NR1cplA {
+    .Panel ._2jpxEWvo06efD6-NR1cplA {
       color: ${s.descColor} !important;
     }
 
-    div[role="alert"] ._2F0wqsu2mqsHxBSJcu1sPJ,
-    div[role="alert"] ._2F0wqsu2mqsHxBSJcu1sPJ svg {
+    .Panel ._2F0wqsu2mqsHxBSJcu1sPJ,
+    .Panel ._2F0wqsu2mqsHxBSJcu1sPJ svg {
       color: ${s.accentColor} !important;
       fill: currentColor !important;
     }
