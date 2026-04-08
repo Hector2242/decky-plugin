@@ -43,6 +43,7 @@ interface ThemeSettings {
   iconShape: IconShape | string;
   bannerStyle: BannerStyle | string;
   rarityEffects: boolean;
+  popupAnimation: boolean;
 }
 
 interface RarityOverride {
@@ -104,18 +105,18 @@ function getRarityOverride(globalPct: number, enabled: boolean): RarityOverride 
   if (globalPct < 1) {
     return {
       label: "Ultra Rare",
-      accentColor: "#00FFFF",
+      accentColor: "#E5E4E2",
       titlePrefix: "💎 Ultra Rare!",
       extraCSS: `
         .xbox-achievement-toast {
-          border-color: #00FFFF !important;
-          box-shadow: 0 0 30px #00FFFF88, 0 0 60px #00FFFF44, 0 0 90px #00FFFF22 !important;
-          animation: ultra-rare-glow 1.5s ease-in-out infinite !important;
+          border-color: #E5E4E2 !important;
+          animation: ultra-rare-radiate 2s ease-in-out infinite !important;
         }
-        @keyframes ultra-rare-glow {
-          0% { box-shadow: 0 0 20px #00FFFF66, 0 0 40px #00FFFF33; }
-          50% { box-shadow: 0 0 40px #00FFFFaa, 0 0 80px #00FFFF55, 0 0 120px #00FFFF22; }
-          100% { box-shadow: 0 0 20px #00FFFF66, 0 0 40px #00FFFF33; }
+        @keyframes ultra-rare-radiate {
+          0% { box-shadow: 0 0 15px #E5E4E288, 0 0 30px #00FFFF44, 0 0 50px #E5E4E222, inset 0 0 15px #E5E4E211; }
+          33% { box-shadow: 0 0 25px #00FFFFaa, 0 0 50px #E5E4E266, 0 0 90px #00FFFF33, 0 0 130px #E5E4E211, inset 0 0 20px #00FFFF11; }
+          66% { box-shadow: 0 0 30px #E5E4E2bb, 0 0 60px #00FFFF55, 0 0 100px #E5E4E233, 0 0 150px #00FFFF11, inset 0 0 25px #E5E4E211; }
+          100% { box-shadow: 0 0 15px #E5E4E288, 0 0 30px #00FFFF44, 0 0 50px #E5E4E222, inset 0 0 15px #E5E4E211; }
         }
       `,
     };
@@ -129,13 +130,12 @@ function getRarityOverride(globalPct: number, enabled: boolean): RarityOverride 
       extraCSS: `
         .xbox-achievement-toast {
           border-color: #FFD700 !important;
-          box-shadow: 0 0 20px #FFD70088, 0 0 50px #FFD70044 !important;
-          animation: rare-glow 2s ease-in-out infinite !important;
+          animation: rare-radiate 2.5s ease-in-out infinite !important;
         }
-        @keyframes rare-glow {
-          0% { box-shadow: 0 0 15px #FFD70055, 0 0 30px #FFD70033; }
-          50% { box-shadow: 0 0 30px #FFD70088, 0 0 60px #FFD70044; }
-          100% { box-shadow: 0 0 15px #FFD70055, 0 0 30px #FFD70033; }
+        @keyframes rare-radiate {
+          0% { box-shadow: 0 0 15px #FFD70077, 0 0 30px #FFA50033, 0 0 50px #FFD70011, inset 0 0 10px #FFD70011; }
+          50% { box-shadow: 0 0 30px #FFD700bb, 0 0 60px #FFA50066, 0 0 100px #FFD70033, 0 0 140px #FFA50011, inset 0 0 20px #FFD70022; }
+          100% { box-shadow: 0 0 15px #FFD70077, 0 0 30px #FFA50033, 0 0 50px #FFD70011, inset 0 0 10px #FFD70011; }
         }
       `,
     };
@@ -177,6 +177,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    popupAnimation: true,
   },
   playstation: {
     primaryColor: "#003087",
@@ -192,6 +193,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    popupAnimation: true,
   },
   steam: {
     primaryColor: "#1b2838",
@@ -207,6 +209,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "rounded",
     bannerStyle: "solid",
     rarityEffects: true,
+    popupAnimation: true,
   },
   nintendo: {
     primaryColor: "#e60012",
@@ -222,6 +225,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    popupAnimation: true,
   },
   gold: {
     primaryColor: "#44330a",
@@ -237,6 +241,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    popupAnimation: true,
   },
   midnight: {
     primaryColor: "#0d0221",
@@ -252,6 +257,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    popupAnimation: true,
   },
 };
 
@@ -275,6 +281,13 @@ const BANNER_STYLE_OPTIONS = [
   { data: "gradient", label: "Gradient" },
   { data: "solid", label: "Solid" },
   { data: "glass", label: "Glass (Blur)" },
+];
+
+const TOAST_SHAPE_OPTIONS = [
+  { data: 0, label: "Square" },
+  { data: 8, label: "Rounded" },
+  { data: 16, label: "Very Rounded" },
+  { data: 24, label: "Pill" },
 ];
 
 function buildAchievementPageCSS(s: ThemeSettings): string {
@@ -325,7 +338,7 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
   const accent = rarity?.accentColor || s.accentColor;
   const glow = s.glowEnabled
     ? `box-shadow: 0 0 ${s.glowIntensity}px ${accent}88, 0 0 ${s.glowIntensity * 3}px ${accent}44 !important;`
-    : "";
+    : "box-shadow: none !important;";
 
   const bg =
     s.bannerStyle === "solid"
@@ -334,13 +347,26 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
         ? `background: ${s.primaryColor}cc !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important;`
         : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
 
+  const popupCSS = s.popupAnimation ? `
+    @keyframes toast-enter {
+      0% { opacity: 0; transform: scale(0.3); border-radius: 50%; }
+      40% { opacity: 1; transform: scale(1.05); border-radius: ${s.borderRadius * 2}px; }
+      70% { transform: scale(0.97); border-radius: ${s.borderRadius}px; }
+      100% { opacity: 1; transform: scale(1); border-radius: ${s.borderRadius}px; }
+    }
+  ` : "";
+
   return `
+    ${popupCSS}
+
     .xbox-achievement-toast {
+      overflow: visible !important;
       ${bg}
       border: 2px solid ${accent} !important;
       border-radius: ${s.borderRadius}px !important;
       ${glow}
-      padding: 8px 10px !important;
+      padding: 10px 14px !important;
+      ${s.popupAnimation ? "animation: toast-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;" : ""}
     }
 
     .xbox-achievement-toast > div {
@@ -364,7 +390,7 @@ function buildNativeToastCSS(s: ThemeSettings): string {
   const ir = iconRadius(s.iconShape);
   const glow = s.glowEnabled
     ? `box-shadow: 0 0 ${s.glowIntensity}px ${s.accentColor}88, 0 0 ${s.glowIntensity * 3}px ${s.accentColor}44 !important;`
-    : "";
+    : "box-shadow: none !important;";
 
   const bg =
     s.bannerStyle === "solid"
@@ -373,10 +399,29 @@ function buildNativeToastCSS(s: ThemeSettings): string {
         ? `background: ${s.primaryColor}cc !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important;`
         : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
 
+  const popupCSS = s.popupAnimation ? `
+    @keyframes toast-enter {
+      0% { opacity: 0; transform: scale(0.3); border-radius: 50%; }
+      40% { opacity: 1; transform: scale(1.05); border-radius: ${s.borderRadius * 2}px; }
+      70% { transform: scale(0.97); border-radius: ${s.borderRadius}px; }
+      100% { opacity: 1; transform: scale(1); border-radius: ${s.borderRadius}px; }
+    }
+  ` : "";
+
   return `
+    ${popupCSS}
+
     ._3YTh805w3-xgPkHE_22XcA {
       overflow: visible !important;
       background: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+      animation: none !important;
+      transition: none !important;
+    }
+
+    div[role="alert"] {
+      overflow: visible !important;
     }
 
     div[role="alert"] > .Panel,
@@ -387,9 +432,13 @@ function buildNativeToastCSS(s: ThemeSettings): string {
       border-radius: ${s.borderRadius}px !important;
       padding: 10px 14px !important;
       ${glow}
+      ${s.popupAnimation ? "animation: toast-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;" : ""}
     }
 
     .Panel ._1fEbX-PfpZ2FhkhttWcm-V {
+      width: 44px !important;
+      height: 44px !important;
+      min-width: 44px !important;
       border-radius: ${ir} !important;
       overflow: hidden !important;
       border: ${s.iconBorder ? `2px solid ${s.accentColor}` : "none"} !important;
@@ -403,21 +452,28 @@ function buildNativeToastCSS(s: ThemeSettings): string {
       display: block !important;
       width: 100% !important;
       height: 100% !important;
+      object-fit: cover !important;
     }
 
     .Panel ._18PwvOcpWfW3M8j2-bEPPJ {
       color: ${s.textColor} !important;
       font-weight: bold !important;
+      font-size: 14px !important;
     }
 
     .Panel ._2jpxEWvo06efD6-NR1cplA {
       color: ${s.descColor} !important;
+      font-size: 12px !important;
+      padding-top: 4px !important;
+      padding-left: 24px !important;
     }
 
     .Panel ._2F0wqsu2mqsHxBSJcu1sPJ,
     .Panel ._2F0wqsu2mqsHxBSJcu1sPJ svg {
       color: ${s.accentColor} !important;
       fill: currentColor !important;
+      width: 18px !important;
+      height: 18px !important;
     }
   `;
 }
@@ -835,9 +891,20 @@ function Content() {
         <PanelSectionRow>
           <ToggleField label="Icon Border" checked={settings.iconBorder} onChange={(v) => update({ iconBorder: v })} />
         </PanelSectionRow>
+        <PanelSectionRow>
+          <DropdownItem
+            label="Toast Shape"
+            rgOptions={TOAST_SHAPE_OPTIONS}
+            selectedOption={TOAST_SHAPE_OPTIONS.find((o) => o.data === settings.borderRadius)?.data ?? 8}
+            onChange={(opt) => update({ borderRadius: opt.data })}
+          />
+        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Effects">
+        <PanelSectionRow>
+          <ToggleField label="Pop-up Animation" description="Toast pops in from a ball" checked={settings.popupAnimation} onChange={(v) => update({ popupAnimation: v })} />
+        </PanelSectionRow>
         <PanelSectionRow>
           <ToggleField label="Glow Effect" checked={settings.glowEnabled} onChange={(v) => update({ glowEnabled: v })} />
         </PanelSectionRow>
@@ -855,18 +922,6 @@ function Content() {
             />
           </PanelSectionRow>
         )}
-        <PanelSectionRow>
-          <SliderField
-            label="Border Radius"
-            value={settings.borderRadius}
-            min={0}
-            max={24}
-            step={2}
-            onChange={(v) => update({ borderRadius: v })}
-            showValue
-            valueSuffix="px"
-          />
-        </PanelSectionRow>
         <PanelSectionRow>
           <ToggleField
             label="Rarity Effects"
