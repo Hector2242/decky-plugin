@@ -389,9 +389,12 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
       position: relative !important;
       background: ${gradient} !important;
     }
-    .achievement-customizer-content,
-    .achievement-customizer-content > * {
+    .achievement-customizer-content {
       position: static !important;
+    }
+    .achievement-customizer-content > *:not(:has(.ac-sky-clip)) {
+      position: relative !important;
+      z-index: 1 !important;
     }
 
     .ac-sky-clip {
@@ -403,7 +406,10 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
       border-radius: inherit;
     }
 
-    .ac-sky-clip ~ * { position: relative; z-index: 1; }
+    .ac-sky-clip ~ img {
+      position: relative !important;
+      z-index: 1 !important;
+    }
 
     .ac-drift-wrapper {
       position: absolute;
@@ -520,7 +526,7 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
       top: -3px; right: -8px;
       width: 34px; height: 34px;
       border-radius: 50%;
-      background: #1D1F2C;
+      background: #2A2D3E;
     }
     @keyframes ac-moon-pulse {
       0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.25)); }
@@ -735,8 +741,8 @@ function buildNativeSkyCSS(variant: string | undefined): string {
         pointer-events: none;
       }
       @keyframes ac-native-sun-pulse {
-        0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.3)); }
-        50%      { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.6)); }
+        0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.25)); }
+        50%      { filter: drop-shadow(0 0 16px rgba(236, 202, 47, 0.75)); }
       }
     `;
   }
@@ -771,12 +777,12 @@ function buildNativeSkyCSS(variant: string | undefined): string {
         width: 34px;
         height: 34px;
         border-radius: 50%;
-        background: #1D1F2C;
+        background: #2A2D3E;
         pointer-events: none;
       }
       @keyframes ac-native-moon-pulse {
-        0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.25)); }
-        50%      { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.45)); }
+        0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.2)); }
+        50%      { filter: drop-shadow(0 0 14px rgba(196, 201, 209, 0.6)); }
       }
     `;
   }
