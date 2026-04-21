@@ -1,7 +1,7 @@
 {
-  "name": "decky-plugin",
-  "version": "0.0.1",
-  "description": "A template to quickly create decky plugins from scratch, based on TypeScript and webpack",
+  "name": "achievement-customizer",
+  "version": "2.0.0",
+  "description": "Decky Loader plugin that replaces Steam's default achievement toasts with customizable, themed notifications.",
   "type": "module",
   "scripts": {
     "build": "rollup -c",

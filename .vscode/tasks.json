@@ -65,7 +65,7 @@
         {
             "label": "build",
             "group": "build",
-            "detail": "Build decky-plugin",
+            "detail": "Build achievement-customizer",
             "dependsOrder": "sequence",
             "dependsOn": [
                 "setup",

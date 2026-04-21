@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from typing import Any, Dict
 
 import decky
@@ -22,6 +23,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "bannerStyle": "gradient",
     "rarityEffects": True,
     "popupAnimation": True,
+    "decorativeElements": "none",
 }
 
 
@@ -56,17 +58,41 @@ class Plugin:
         return DEFAULT_SETTINGS.copy()
 
     async def _main(self):
-        decky.logger.info("Xbox Achievements plugin loaded")
+        decky.logger.info("Achievement Customizer plugin loaded")
 
     async def _unload(self):
-        decky.logger.info("Xbox Achievements plugin unloaded")
+        decky.logger.info("Achievement Customizer plugin unloaded")
 
     async def _uninstall(self):
         if os.path.exists(SETTINGS_FILE):
             os.remove(SETTINGS_FILE)
 
     async def _migration(self):
-        decky.logger.info("Migrating")
-        decky.migrate_settings(
-            os.path.join(decky.DECKY_HOME, "settings", "xbox-achievements.json")
-        )
+        # Non-destructive migration: copy settings from the pre-rename location into the
+        # current DECKY_PLUGIN_SETTINGS_DIR. We intentionally do NOT use decky.migrate_settings()
+        # because it removes the old locations; we leave the old files in place so a user who
+        # rolls back to a prior plugin version still has their data.
+        new_settings = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
+        if os.path.exists(new_settings):
+            decky.logger.info(
+                f"Settings already present at {new_settings}, skipping migration"
+            )
+            return
+
+        candidates = [
+            # Directory form — display name (path used before the rename to Achievement Customizer)
+            os.path.join(decky.DECKY_HOME, "settings", "Xbox Achievements", "settings.json"),
+            # Directory form — kebab-case
+            os.path.join(decky.DECKY_HOME, "settings", "xbox-achievements", "settings.json"),
+            # Legacy single-file path (what the original _migration targeted)
+            os.path.join(decky.DECKY_HOME, "settings", "xbox-achievements.json"),
+        ]
+
+        for src in candidates:
+            if os.path.exists(src):
+                os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
+                shutil.copy2(src, new_settings)
+                decky.logger.info(f"Migrated settings from {src} to {new_settings}")
+                return
+
+        decky.logger.info("No prior settings found to migrate")

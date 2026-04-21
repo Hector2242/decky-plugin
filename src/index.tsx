@@ -24,9 +24,10 @@ const getSettings = callable<[], ThemeSettings>("get_settings");
 const saveSettings = callable<[settings: ThemeSettings], boolean>("save_settings");
 const getDefaultSettings = callable<[], ThemeSettings>("get_default_settings");
 
-type PresetName = "xbox" | "playstation" | "steam" | "nintendo" | "gold" | "midnight" | "custom";
+type PresetName = "xbox" | "playstation" | "steam" | "nintendo" | "gold" | "midnight" | "sky-day" | "sky-night" | "custom";
 type IconShape = "circle" | "rounded" | "square";
 type BannerStyle = "gradient" | "solid" | "glass";
+type DecorativeElements = "none" | "sky-day" | "sky-night";
 
 interface ThemeSettings {
   preset: PresetName | string;
@@ -44,6 +45,7 @@ interface ThemeSettings {
   bannerStyle: BannerStyle | string;
   rarityEffects: boolean;
   popupAnimation: boolean;
+  decorativeElements: DecorativeElements | string;
 }
 
 interface RarityOverride {
@@ -108,7 +110,7 @@ function getRarityOverride(globalPct: number, enabled: boolean): RarityOverride 
       accentColor: "#E5E4E2",
       titlePrefix: "💎 Ultra Rare!",
       extraCSS: `
-        .xbox-achievement-toast {
+        .achievement-customizer-toast {
           border-color: #E5E4E2 !important;
           animation: ultra-rare-radiate 2s ease-in-out infinite !important;
         }
@@ -128,7 +130,7 @@ function getRarityOverride(globalPct: number, enabled: boolean): RarityOverride 
       accentColor: "#FFD700",
       titlePrefix: "⭐ Rare Achievement!",
       extraCSS: `
-        .xbox-achievement-toast {
+        .achievement-customizer-toast {
           border-color: #FFD700 !important;
           animation: rare-radiate 2.5s ease-in-out infinite !important;
         }
@@ -147,7 +149,7 @@ function getRarityOverride(globalPct: number, enabled: boolean): RarityOverride 
       accentColor: "",
       titlePrefix: "",
       extraCSS: `
-        .xbox-achievement-toast {
+        .achievement-customizer-toast {
           animation: uncommon-shimmer 3s ease-in-out infinite !important;
         }
         @keyframes uncommon-shimmer {
@@ -178,6 +180,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     bannerStyle: "gradient",
     rarityEffects: true,
     popupAnimation: true,
+    decorativeElements: "none",
   },
   playstation: {
     primaryColor: "#003087",
@@ -194,6 +197,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     bannerStyle: "gradient",
     rarityEffects: true,
     popupAnimation: true,
+    decorativeElements: "none",
   },
   steam: {
     primaryColor: "#1b2838",
@@ -210,6 +214,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     bannerStyle: "solid",
     rarityEffects: true,
     popupAnimation: true,
+    decorativeElements: "none",
   },
   nintendo: {
     primaryColor: "#e60012",
@@ -226,6 +231,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     bannerStyle: "gradient",
     rarityEffects: true,
     popupAnimation: true,
+    decorativeElements: "none",
   },
   gold: {
     primaryColor: "#44330a",
@@ -242,6 +248,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     bannerStyle: "gradient",
     rarityEffects: true,
     popupAnimation: true,
+    decorativeElements: "none",
   },
   midnight: {
     primaryColor: "#0d0221",
@@ -258,6 +265,41 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     bannerStyle: "gradient",
     rarityEffects: true,
     popupAnimation: true,
+    decorativeElements: "none",
+  },
+  "sky-day": {
+    primaryColor: "#5EA6D6",
+    secondaryColor: "#3D7EAE",
+    accentColor: "#ECCA2F",
+    textColor: "#FFF8E7",
+    descColor: "#FFF8E7",
+    glowEnabled: true,
+    glowIntensity: 15,
+    borderRadius: 14,
+    duration: 6000,
+    iconBorder: true,
+    iconShape: "circle",
+    bannerStyle: "gradient",
+    rarityEffects: true,
+    popupAnimation: true,
+    decorativeElements: "sky-day",
+  },
+  "sky-night": {
+    primaryColor: "#2A2D3E",
+    secondaryColor: "#1D1F2C",
+    accentColor: "#C4C9D1",
+    textColor: "#E8EBF2",
+    descColor: "#E8EBF2",
+    glowEnabled: true,
+    glowIntensity: 15,
+    borderRadius: 14,
+    duration: 6000,
+    iconBorder: true,
+    iconShape: "circle",
+    bannerStyle: "gradient",
+    rarityEffects: true,
+    popupAnimation: true,
+    decorativeElements: "sky-night",
   },
 };
 
@@ -268,6 +310,8 @@ const PRESET_OPTIONS = [
   { data: "nintendo", label: "Nintendo" },
   { data: "gold", label: "Gold" },
   { data: "midnight", label: "Midnight" },
+  { data: "sky-day", label: "Sky Day" },
+  { data: "sky-night", label: "Sky Night" },
   { data: "custom", label: "Custom" },
 ];
 
@@ -334,6 +378,182 @@ function buildAchievementPageCSS(s: ThemeSettings): string {
   `;
 }
 
+function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
+  const gradient =
+    variant === "sky-day"
+      ? "linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%)"
+      : "linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%)";
+
+  const common = `
+    .achievement-customizer-toast {
+      position: relative !important;
+      background: ${gradient} !important;
+    }
+    .achievement-customizer-content,
+    .achievement-customizer-content > * {
+      position: static !important;
+    }
+
+    .ac-sky-clip {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+      border-radius: inherit;
+    }
+
+    .ac-sky-clip ~ * { position: relative; z-index: 1; }
+
+    .ac-drift-wrapper {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .ac-drift-track {
+      display: flex;
+      width: 200%;
+      height: 100%;
+    }
+    .ac-drift-half {
+      width: 50%;
+      height: 100%;
+      position: relative;
+    }
+    .ac-drift-back-clouds { animation: ac-drift-left 30s linear infinite; }
+    .ac-drift-front-clouds { animation: ac-drift-left 20s linear infinite; }
+    .ac-drift-stars { animation: ac-drift-left 60s linear infinite; }
+
+    @keyframes ac-drift-left {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ac-sun, .ac-moon, .ac-star,
+      .ac-drift-back-clouds, .ac-drift-front-clouds, .ac-drift-stars {
+        animation: none !important;
+      }
+    }
+  `;
+
+  if (variant === "sky-day") {
+    return `${common}
+      .ac-sun {
+        position: absolute;
+        top: 12.5%;
+        right: 5.56%;
+        width: 38px; height: 38px;
+        background: #ECCA2F;
+        border-radius: 50%;
+        box-shadow:
+          inset 1px 1px 2px rgba(254, 255, 239, 0.6),
+          inset 0 -1px 2px rgba(161, 135, 42, 0.5);
+        animation: ac-sun-pulse 4s infinite ease-in-out;
+      }
+      @keyframes ac-sun-pulse {
+        0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.3)); }
+        50%      { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.6)); }
+      }
+
+      .ac-birds {
+        position: absolute;
+        top: 25%;
+        left: 38.89%;
+        opacity: 0.5;
+      }
+
+      .ac-cloud-1, .ac-cloud-2, .ac-cloud-3 {
+        position: absolute;
+        border-radius: 50%;
+      }
+      .ac-cloud-1 {
+        width: 45px; height: 45px;
+        background: #F3FDFF;
+        top: 72.92%; left: 4.17%;
+        box-shadow:
+          35px -10px 0 12px #F3FDFF,
+          75px 5px 0 -5px #F3FDFF,
+          -25px 8px 0 -8px #F3FDFF;
+      }
+      .ac-cloud-2 {
+        width: 55px; height: 55px;
+        background: #F3FDFF;
+        top: 67.71%; left: 52.78%;
+        box-shadow:
+          40px 12px 0 -5px #F3FDFF,
+          80px -8px 0 8px #F3FDFF,
+          -35px 15px 0 -12px #F3FDFF,
+          115px 15px 0 -10px #F3FDFF;
+      }
+      .ac-cloud-3 {
+        width: 48px; height: 48px;
+        background: #AACADF;
+        top: 58.33%; left: 27.78%;
+        box-shadow:
+          45px -8px 0 6px #AACADF,
+          95px 12px 0 -5px #AACADF,
+          -40px 12px 0 -10px #AACADF,
+          135px -5px 0 8px #AACADF,
+          185px 10px 0 -8px #AACADF;
+      }
+    `;
+  }
+
+  return `${common}
+    .ac-moon {
+      position: absolute;
+      top: 14.58%;
+      right: 6.11%;
+      width: 34px; height: 34px;
+      background: #C4C9D1;
+      border-radius: 50%;
+      box-shadow:
+        inset 1px 1px 2px rgba(254, 255, 239, 0.5),
+        inset 0 -1px 2px rgba(150, 150, 150, 0.6);
+      animation: ac-moon-pulse 5s infinite ease-in-out;
+    }
+    .ac-moon::after {
+      content: '';
+      position: absolute;
+      top: -3px; right: -8px;
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: #1D1F2C;
+    }
+    @keyframes ac-moon-pulse {
+      0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.25)); }
+      50%      { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.45)); }
+    }
+
+    .ac-star {
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+      animation: ac-twinkle 2.5s infinite ease-in-out alternate;
+    }
+    .ac-star-1 { width: 2px; height: 2px; top: 18.75%; left: 38.89%; animation-delay: 0s; }
+    .ac-star-2 { width: 3px; height: 3px; top: 36.46%; left: 66.67%; animation-delay: 0.3s; }
+    .ac-star-3 { width: 2px; height: 2px; top: 72.92%; left: 30.56%; animation-delay: 0.7s; }
+    .ac-star-4 { width: 4px; height: 4px; top: 22.92%; left: 16.67%; animation-delay: 1.2s; }
+    .ac-star-5 { width: 2px; height: 2px; top: 57.29%; left: 86.11%; animation-delay: 1.8s; }
+    .ac-star-6 { width: 3px; height: 3px; top: 83.33%; left: 52.78%; animation-delay: 0.5s; }
+    .ac-star-7 { width: 2px; height: 2px; top: 46.88%; left: 5.56%; animation-delay: 1.5s; }
+    .ac-star-8 { width: 2px; height: 2px; top: 67.71%; left: 75.00%; animation-delay: 0.9s; }
+
+    @keyframes ac-twinkle {
+      0%   { opacity: 0.4; }
+      100% { opacity: 1.0; }
+    }
+
+    .ac-constellation-path {
+      position: absolute;
+      fill: #fff;
+    }
+  `;
+}
+
 function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string {
   const accent = rarity?.accentColor || s.accentColor;
   const glow = s.glowEnabled
@@ -356,10 +576,15 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
     }
   ` : "";
 
+  const skyCSS =
+    s.decorativeElements === "sky-day" || s.decorativeElements === "sky-night"
+      ? buildSkyCSS(s.decorativeElements)
+      : "";
+
   return `
     ${popupCSS}
 
-    .xbox-achievement-toast {
+    .achievement-customizer-toast {
       overflow: visible !important;
       ${bg}
       border: 2px solid ${accent} !important;
@@ -369,17 +594,18 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
       ${s.popupAnimation ? "animation: toast-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;" : ""}
     }
 
-    .xbox-achievement-toast > div {
+    .achievement-customizer-toast > div {
       background: transparent !important;
     }
 
-    .xbox-achievement-toast img {
+    .achievement-customizer-toast img {
       border-radius: ${iconRadius(s.iconShape)} !important;
       border: ${s.iconBorder ? `2px solid ${accent}` : "none"} !important;
       box-shadow: ${s.iconBorder ? `0 0 8px ${accent}66` : "none"} !important;
     }
 
     ${rarity?.extraCSS || ""}
+    ${skyCSS}
   `;
 }
 
@@ -475,7 +701,86 @@ function buildNativeToastCSS(s: ThemeSettings): string {
       width: 18px !important;
       height: 18px !important;
     }
+
+    ${buildNativeSkyCSS(s.decorativeElements)}
   `;
+}
+
+// Native overlay is CSS-only (executeInTab can't add DOM). Sky presets get a
+// degraded fallback here: gradient background + a single sun/moon pseudo-element
+// with pulse. Drift clouds, birds, stars, and constellations are not possible
+// without DOM injection and are intentionally omitted on this surface.
+function buildNativeSkyCSS(variant: string | undefined): string {
+  if (variant === "sky-day") {
+    return `
+      div[role="alert"] > .Panel,
+      div[role="alert"] > .Panel.Focusable,
+      div[role="alert"] > [role="button"] {
+        background: linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%) !important;
+        position: relative !important;
+      }
+      div[role="alert"] > .Panel::before {
+        content: '';
+        position: absolute;
+        top: 12px;
+        right: 20px;
+        width: 38px;
+        height: 38px;
+        background: #ECCA2F;
+        border-radius: 50%;
+        box-shadow:
+          inset 1px 1px 2px rgba(254, 255, 239, 0.6),
+          inset 0 -1px 2px rgba(161, 135, 42, 0.5);
+        animation: ac-native-sun-pulse 4s infinite ease-in-out;
+        pointer-events: none;
+      }
+      @keyframes ac-native-sun-pulse {
+        0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.3)); }
+        50%      { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.6)); }
+      }
+    `;
+  }
+  if (variant === "sky-night") {
+    return `
+      div[role="alert"] > .Panel,
+      div[role="alert"] > .Panel.Focusable,
+      div[role="alert"] > [role="button"] {
+        background: linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%) !important;
+        position: relative !important;
+      }
+      div[role="alert"] > .Panel::before {
+        content: '';
+        position: absolute;
+        top: 14px;
+        right: 22px;
+        width: 34px;
+        height: 34px;
+        background: #C4C9D1;
+        border-radius: 50%;
+        box-shadow:
+          inset 1px 1px 2px rgba(254, 255, 239, 0.5),
+          inset 0 -1px 2px rgba(150, 150, 150, 0.6);
+        animation: ac-native-moon-pulse 5s infinite ease-in-out;
+        pointer-events: none;
+      }
+      div[role="alert"] > .Panel::after {
+        content: '';
+        position: absolute;
+        top: 11px;
+        right: 14px;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: #1D1F2C;
+        pointer-events: none;
+      }
+      @keyframes ac-native-moon-pulse {
+        0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.25)); }
+        50%      { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.45)); }
+      }
+    `;
+  }
+  return "";
 }
 
 function injectNotifCSS(s: ThemeSettings): void {
@@ -483,10 +788,10 @@ function injectNotifCSS(s: ThemeSettings): void {
   const escaped = css.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
   executeInTab("notificationtoasts_uid2", false, `
     (function() {
-      var el = document.getElementById("xbox-achievements-notif-css");
+      var el = document.getElementById("achievement-customizer-notif-css");
       if (el) el.remove();
       var style = document.createElement("style");
-      style.id = "xbox-achievements-notif-css";
+      style.id = "achievement-customizer-notif-css";
       style.textContent = \`${escaped}\`;
       document.head.appendChild(style);
     })();
@@ -510,13 +815,91 @@ function reinjectAllCSS(s: ThemeSettings): void {
 
 function saveSettingsSafe(settings: ThemeSettings): void {
   saveSettings(settings).catch((error) => {
-    console.error("[XboxAchievements] Failed to save settings", error);
+    console.error("[AchievementCustomizer] Failed to save settings", error);
   });
 }
 
 const ACHIEVEMENT_BADGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" fill="none"><path d="M30 30.05H26L24 34.05L20.11 27.57L22.9 24.8701L26.9 24.81L30 30.05ZM13.1 24.8701L9.1 24.81L6 30.05H10L12 34.05L15.89 27.57L13.1 24.8701ZM22.5 13.05C22.5 12.16 22.2361 11.29 21.7416 10.55C21.2471 9.80996 20.5443 9.23318 19.7221 8.89259C18.8998 8.552 17.995 8.46288 17.1221 8.63651C16.2492 8.81015 15.4474 9.23873 14.818 9.86807C14.1887 10.4974 13.7601 11.2992 13.5865 12.1721C13.4128 13.0451 13.5019 13.9499 13.8425 14.7721C14.1831 15.5944 14.7599 16.2972 15.4999 16.7917C16.24 17.2861 17.11 17.55 18 17.55C18.5913 17.5514 19.1771 17.4359 19.7236 17.2102C20.2702 16.9845 20.7668 16.6531 21.1849 16.235C21.603 15.8168 21.9345 15.3202 22.1601 14.7737C22.3858 14.2271 22.5013 13.6414 22.5 13.05ZM29 13.05L25.85 16.3L25.78 20.83L21.25 20.9L18 24.05L14.75 20.9L10.22 20.83L10.15 16.3L7 13.05L10.15 9.80005L10.22 5.27005L14.75 5.20005L18 2.05005L21.25 5.20005L25.78 5.27005L25.85 9.80005L29 13.05Z" fill="currentColor"></path></svg>`;
 
 const SAMPLE_ACHIEVEMENT_IMAGE = "https://shared.steamstatic.com/community_assets/images/apps/22380/ee1e9636c2b7d5add9123ef556c80fdd87ba1669.jpg";
+
+const CONSTELLATION_PATH_D = "M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z";
+
+const CONSTELLATIONS: { top: string; left: string; width: string; opacity: number }[] = [
+  { top: "15.63%", left: "12.5%",  width: "8px",  opacity: 0.7 },
+  { top: "62.5%",  left: "36.11%", width: "6px",  opacity: 0.4 },
+  { top: "26.04%", left: "58.33%", width: "10px", opacity: 0.8 },
+  { top: "67.71%", left: "80.56%", width: "7px",  opacity: 0.5 },
+];
+
+function ConstellationHalf() {
+  return (
+    <div className="ac-drift-half">
+      {CONSTELLATIONS.map((c, i) => (
+        <svg
+          key={i}
+          className="ac-constellation-path"
+          viewBox="133 0 8 9"
+          style={{ top: c.top, left: c.left, width: c.width, opacity: c.opacity }}
+        >
+          <path d={CONSTELLATION_PATH_D} />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+function SkyDecorations({ variant }: { variant: "sky-day" | "sky-night" }) {
+  if (variant === "sky-day") {
+    return (
+      <div className="ac-sky-clip">
+        <div className="ac-sun" />
+        <svg className="ac-birds" viewBox="0 0 60 20" width="40" height="20">
+          <path d="M2 10 Q 7 2 12 10 Q 17 2 22 10" fill="none" stroke="#FFF8E7" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M25 15 Q 30 7 35 15 Q 40 7 45 15" fill="none" stroke="#FFF8E7" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <div className="ac-drift-wrapper">
+          <div className="ac-drift-track ac-drift-back-clouds">
+            <div className="ac-drift-half"><div className="ac-cloud-3" /></div>
+            <div className="ac-drift-half"><div className="ac-cloud-3" /></div>
+          </div>
+        </div>
+        <div className="ac-drift-wrapper">
+          <div className="ac-drift-track ac-drift-front-clouds">
+            <div className="ac-drift-half">
+              <div className="ac-cloud-1" />
+              <div className="ac-cloud-2" />
+            </div>
+            <div className="ac-drift-half">
+              <div className="ac-cloud-1" />
+              <div className="ac-cloud-2" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="ac-sky-clip">
+      <div className="ac-moon" />
+      <div className="ac-star ac-star-1" />
+      <div className="ac-star ac-star-2" />
+      <div className="ac-star ac-star-3" />
+      <div className="ac-star ac-star-4" />
+      <div className="ac-star ac-star-5" />
+      <div className="ac-star ac-star-6" />
+      <div className="ac-star ac-star-7" />
+      <div className="ac-star ac-star-8" />
+      <div className="ac-drift-wrapper">
+        <div className="ac-drift-track ac-drift-stars">
+          <ConstellationHalf />
+          <ConstellationHalf />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BadgeIcon({ color, size = 18 }: { color: string; size?: number }) {
   return (
@@ -616,10 +999,16 @@ function fireXboxToast(name: string, description: string, imageUrl: string, glob
     </div>
   ) : titleRow;
 
+  const skyVariant =
+    s.decorativeElements === "sky-day" || s.decorativeElements === "sky-night"
+      ? s.decorativeElements
+      : null;
+
   toaster.toast({
     logo: (
       <>
         <style>{buildToastCSS(s, rarity)}</style>
+        {skyVariant && <SkyDecorations variant={skyVariant} />}
         <img
           src={imageUrl}
           style={{
@@ -635,7 +1024,8 @@ function fireXboxToast(name: string, description: string, imageUrl: string, glob
     ),
     title: titleContent,
     body: <span style={{ color: s.descColor, fontSize: "12px" }}>{description}</span>,
-    className: "xbox-achievement-toast",
+    className: "achievement-customizer-toast",
+    contentClassName: "achievement-customizer-content",
     duration: s.duration,
     playSound: true,
     showToast: true,
@@ -783,7 +1173,7 @@ function Content() {
         setLoaded(true);
       })
       .catch((error) => {
-        console.error("[XboxAchievements] Failed to load settings", error);
+        console.error("[AchievementCustomizer] Failed to load settings", error);
         setLoaded(true);
       });
   }, []);
@@ -988,7 +1378,7 @@ export default definePlugin(() => {
         const achieved = extractAchievement(notification);
 
         if (!achieved) {
-          console.warn("[XboxAchievements] Unrecognized achievement notification payload", notification);
+          console.warn("[AchievementCustomizer] Unrecognized achievement notification payload", notification);
           return;
         }
 
@@ -1000,15 +1390,15 @@ export default definePlugin(() => {
         );
       });
     } catch (e) {
-      console.warn("[XboxAchievements] RegisterForAchievementNotification failed:", e);
+      console.warn("[AchievementCustomizer] RegisterForAchievementNotification failed:", e);
     }
   } else {
-    console.warn("[XboxAchievements] RegisterForAchievementNotification is unavailable");
+    console.warn("[AchievementCustomizer] RegisterForAchievementNotification is unavailable");
   }
 
   return {
-    name: "Xbox Achievements",
-    titleView: <div className={staticClasses.Title}>Xbox Achievements</div>,
+    name: "Achievement Customizer",
+    titleView: <div className={staticClasses.Title}>Achievement Customizer</div>,
     content: <Content />,
     icon: <FaPalette />,
     onDismount() {
@@ -1017,7 +1407,7 @@ export default definePlugin(() => {
         removeCssFromTab("Steam Big Picture Mode", currentPageCssId);
       }
       executeInTab("notificationtoasts_uid2", false, `
-        var el = document.getElementById("xbox-achievements-notif-css");
+        var el = document.getElementById("achievement-customizer-notif-css");
         if (el) el.remove();
       `).catch(() => {});
     },

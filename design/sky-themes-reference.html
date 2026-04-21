@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Achievement Toasts</title>
+  <style>
+    /* ==========================================================================
+       Base Styles & Container
+       ========================================================================== */
+    body {
+      background-color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      gap: 20px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    /* Shared Toast Styles */
+    .ac-toast {
+      width: 360px;
+      height: 96px;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+      box-sizing: border-box;
+      animation: ac-slide-in 500ms cubic-bezier(0, -0.02, 0.4, 1.25);
+      transform-origin: right center;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .ac-background {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .ac-content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      height: 100%;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+
+    /* Icon Container */
+    .ac-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .ac-icon svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    /* Text Formatting */
+    .ac-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    .ac-eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      opacity: 0.78;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .ac-title {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .ac-desc {
+      font-size: 12px;
+      opacity: 0.82;
+    }
+
+    /* ==========================================================================
+       Day Toast Styles
+       ========================================================================== */
+    .ac-toast-day {
+      background: linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%);
+      color: #FFF8E7;
+    }
+
+    .ac-toast-day .ac-icon {
+      background: rgba(255, 248, 231, 0.22);
+    }
+
+    /* Sun */
+    .ac-sun {
+      position: absolute;
+      top: 12px;
+      right: 20px;
+      width: 38px;
+      height: 38px;
+      background: #ECCA2F;
+      border-radius: 50%;
+      box-shadow:
+        inset 1px 1px 2px rgba(254, 255, 239, 0.6),
+        inset 0 -1px 2px rgba(161, 135, 42, 0.5);
+      animation: ac-sun-pulse 4s infinite ease-in-out;
+    }
+
+    /* Birds */
+    .ac-birds {
+      position: absolute;
+      top: 24px;
+      left: 140px;
+      opacity: 0.5;
+    }
+
+    /* Clouds Layering & Box Shadow Technique */
+    .ac-cloud-1, .ac-cloud-2, .ac-cloud-3 {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    /* Front Cloud Clusters */
+    .ac-cloud-1 {
+      width: 45px; height: 45px;
+      background: #F3FDFF;
+      top: 70px; left: 15px;
+      box-shadow:
+        35px -10px 0 12px #F3FDFF,
+        75px 5px 0 -5px #F3FDFF,
+        -25px 8px 0 -8px #F3FDFF;
+    }
+
+    .ac-cloud-2 {
+      width: 55px; height: 55px;
+      background: #F3FDFF;
+      top: 65px; left: 190px;
+      box-shadow:
+        40px 12px 0 -5px #F3FDFF,
+        80px -8px 0 8px #F3FDFF,
+        -35px 15px 0 -12px #F3FDFF,
+        115px 15px 0 -10px #F3FDFF;
+    }
+
+    /* Back Cloud Cluster */
+    .ac-cloud-3 {
+      width: 48px; height: 48px;
+      background: #AACADF;
+      top: 56px; left: 100px;
+      box-shadow:
+        45px -8px 0 6px #AACADF,
+        95px 12px 0 -5px #AACADF,
+        -40px 12px 0 -10px #AACADF,
+        135px -5px 0 8px #AACADF,
+        185px 10px 0 -8px #AACADF;
+    }
+
+    /* ==========================================================================
+       Night Toast Styles
+       ========================================================================== */
+    .ac-toast-night {
+      background: linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%);
+      color: #E8EBF2;
+    }
+
+    .ac-toast-night .ac-icon {
+      background: rgba(196, 201, 209, 0.18);
+    }
+
+    /* Moon (Two-circle offset crescent technique) */
+    .ac-moon {
+      position: absolute;
+      top: 14px;
+      right: 22px;
+      width: 34px;
+      height: 34px;
+      background: #C4C9D1;
+      border-radius: 50%;
+      box-shadow:
+        inset 1px 1px 2px rgba(254, 255, 239, 0.5),
+        inset 0 -1px 2px rgba(150, 150, 150, 0.6);
+      animation: ac-moon-pulse 5s infinite ease-in-out;
+    }
+
+    .ac-moon::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      right: -8px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #1D1F2C; /* Matches bottom-right toast bg gradient to "eat" the moon */
+    }
+
+    /* Regular Stars */
+    .ac-star {
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+      animation: ac-twinkle 2.5s infinite ease-in-out alternate;
+    }
+
+    .ac-star-1 { width: 2px; height: 2px; top: 18px; left: 140px; animation-delay: 0s; }
+    .ac-star-2 { width: 3px; height: 3px; top: 35px; left: 240px; animation-delay: 0.3s; }
+    .ac-star-3 { width: 2px; height: 2px; top: 70px; left: 110px; animation-delay: 0.7s; }
+    .ac-star-4 { width: 4px; height: 4px; top: 22px; left: 60px; animation-delay: 1.2s; }
+    .ac-star-5 { width: 2px; height: 2px; top: 55px; left: 310px; animation-delay: 1.8s; }
+    .ac-star-6 { width: 3px; height: 3px; top: 80px; left: 190px; animation-delay: 0.5s; }
+    .ac-star-7 { width: 2px; height: 2px; top: 45px; left: 20px; animation-delay: 1.5s; }
+    .ac-star-8 { width: 2px; height: 2px; top: 65px; left: 270px; animation-delay: 0.9s; }
+
+    /* SVG Constellation Paths */
+    .ac-constellation-path {
+      position: absolute;
+      fill: #fff;
+    }
+
+    /* ==========================================================================
+       Seamless Drift Animation Setup (Infinite Horizontal Translation)
+       ========================================================================== */
+    .ac-drift-wrapper {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .ac-drift-track {
+      display: flex;
+      width: 200%; /* 720px to allow side-by-side looping */
+      height: 100%;
+    }
+
+    .ac-drift-half {
+      width: 50%; /* 360px per half */
+      height: 100%;
+      position: relative;
+    }
+
+    /* Drift speeds */
+    .ac-drift-back-clouds { animation: ac-drift-left 30s linear infinite; }
+    .ac-drift-front-clouds { animation: ac-drift-left 20s linear infinite; }
+    .ac-drift-stars { animation: ac-drift-left 60s linear infinite; }
+
+    /* ==========================================================================
+       Keyframes
+       ========================================================================== */
+    @keyframes ac-slide-in {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(0); }
+    }
+
+    @keyframes ac-sun-pulse {
+      0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.3)); }
+      50% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.6)); }
+    }
+
+    @keyframes ac-moon-pulse {
+      0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.25)); }
+      50% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.45)); }
+    }
+
+    @keyframes ac-twinkle {
+      0% { opacity: 0.4; }
+      100% { opacity: 1.0; }
+    }
+
+    @keyframes ac-drift-left {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); } /* Shifts exactly 1 half (360px) to loop */
+    }
+
+    /* ==========================================================================
+       Accessibility: Reduced Motion
+       ========================================================================== */
+    @media (prefers-reduced-motion: reduce) {
+      .ac-toast,
+      .ac-sun,
+      .ac-moon,
+      .ac-star,
+      .ac-drift-back-clouds,
+      .ac-drift-front-clouds,
+      .ac-drift-stars {
+        animation: none !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ac-toast ac-toast-day">
+    <div class="ac-background">
+
+      <div class="ac-sun"></div>
+      <svg class="ac-birds" viewBox="0 0 60 20" width="40" height="20">
+        <path d="M2 10 Q 7 2 12 10 Q 17 2 22 10" fill="none" stroke="#FFF8E7" stroke-width="1.5" stroke-linecap="round" />
+        <path d="M25 15 Q 30 7 35 15 Q 40 7 45 15" fill="none" stroke="#FFF8E7" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+
+      <div class="ac-drift-wrapper">
+        <div class="ac-drift-track ac-drift-back-clouds">
+          <div class="ac-drift-half"><div class="ac-cloud-3"></div></div>
+          <div class="ac-drift-half"><div class="ac-cloud-3"></div></div>
+        </div>
+      </div>
+
+      <div class="ac-drift-wrapper">
+        <div class="ac-drift-track ac-drift-front-clouds">
+          <div class="ac-drift-half">
+            <div class="ac-cloud-1"></div>
+            <div class="ac-cloud-2"></div>
+          </div>
+          <div class="ac-drift-half">
+            <div class="ac-cloud-1"></div>
+            <div class="ac-cloud-2"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="ac-content">
+      <div class="ac-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#FFF8E7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 4h3v2a3 3 0 0 1-3 3M7 4H4v2a3 3 0 0 0 3 3"/>
+        </svg>
+      </div>
+      <div class="ac-text">
+        <div class="ac-eyebrow">Achievement unlocked</div>
+        <div class="ac-title">First flight</div>
+        <div class="ac-desc">Reach 1,000 meters above sea level</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ac-toast ac-toast-night">
+    <div class="ac-background">
+
+      <div class="ac-moon"></div>
+      <div class="ac-star ac-star-1"></div>
+      <div class="ac-star ac-star-2"></div>
+      <div class="ac-star ac-star-3"></div>
+      <div class="ac-star ac-star-4"></div>
+      <div class="ac-star ac-star-5"></div>
+      <div class="ac-star ac-star-6"></div>
+      <div class="ac-star ac-star-7"></div>
+      <div class="ac-star ac-star-8"></div>
+
+      <div class="ac-drift-wrapper">
+        <div class="ac-drift-track ac-drift-stars">
+          <div class="ac-drift-half">
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 15px; left: 45px; width: 8px; opacity: 0.7;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 60px; left: 130px; width: 6px; opacity: 0.4;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 25px; left: 210px; width: 10px; opacity: 0.8;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 65px; left: 290px; width: 7px; opacity: 0.5;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+          </div>
+          <div class="ac-drift-half">
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 15px; left: 45px; width: 8px; opacity: 0.7;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 60px; left: 130px; width: 6px; opacity: 0.4;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 25px; left: 210px; width: 10px; opacity: 0.8;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+            <svg class="ac-constellation-path" viewBox="133 0 8 9" style="top: 65px; left: 290px; width: 7px; opacity: 0.5;">
+              <path d="M135.831 3.00688C135.055 3.85027 134.111 4.29946 133 4.35447C134.111 4.40947 135.055 4.85867 135.831 5.71123C136.607 6.55462 136.996 7.56303 136.996 8.72727C136.996 7.95722 137.172 7.25134 137.525 6.59129C137.886 5.93124 138.372 5.39954 138.98 5.00535C139.598 4.60199 140.268 4.39114 141 4.35447C139.88 4.2903 138.936 3.85027 138.16 3.00688C137.384 2.16348 136.996 1.16425 136.996 0C136.996 1.16425 136.607 2.16348 135.831 3.00688Z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="ac-content">
+      <div class="ac-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#E8EBF2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 4h3v2a3 3 0 0 1-3 3M7 4H4v2a3 3 0 0 0 3 3"/>
+        </svg>
+      </div>
+      <div class="ac-text">
+        <div class="ac-eyebrow">Achievement unlocked</div>
+        <div class="ac-title">Night owl</div>
+        <div class="ac-desc">Play past 2 AM three days in a row</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

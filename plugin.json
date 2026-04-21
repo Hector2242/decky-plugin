@@ -1,11 +1,11 @@
 {
-  "name": "Xbox Achievements",
-  "author": "John Doe",
-  "flags": ["debug"],
+  "name": "Achievement Customizer",
+  "author": "Hector Mendez",
+  "flags": [],
   "api_version": 2,
   "publish": {
-    "tags": ["template", "root"],
-    "description": "Decky example plugin.",
+    "tags": ["customization", "achievements", "notifications"],
+    "description": "Customize Steam achievement notifications with themed toast popups (Xbox, PlayStation, Steam, Nintendo, and more).",
     "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
   }
 }
