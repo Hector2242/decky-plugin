@@ -24,10 +24,10 @@ const getSettings = callable<[], ThemeSettings>("get_settings");
 const saveSettings = callable<[settings: ThemeSettings], boolean>("save_settings");
 const getDefaultSettings = callable<[], ThemeSettings>("get_default_settings");
 
-type PresetName = "xbox" | "playstation" | "steam" | "nintendo" | "gold" | "midnight" | "sky-day" | "sky-night" | "custom";
+type PresetName = "xbox" | "playstation" | "steam" | "nintendo" | "gold" | "midnight" | "sky-night" | "custom";
 type IconShape = "circle" | "rounded" | "square";
 type BannerStyle = "gradient" | "solid" | "glass";
-type DecorativeElements = "none" | "sky-day" | "sky-night";
+type DecorativeElements = "none" | "sky-night";
 
 interface ThemeSettings {
   preset: PresetName | string;
@@ -44,6 +44,7 @@ interface ThemeSettings {
   iconShape: IconShape | string;
   bannerStyle: BannerStyle | string;
   rarityEffects: boolean;
+  showCustomToastOnRealUnlock: boolean;
   popupAnimation: boolean;
   decorativeElements: DecorativeElements | string;
 }
@@ -179,6 +180,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    showCustomToastOnRealUnlock: true,
     popupAnimation: true,
     decorativeElements: "none",
   },
@@ -196,6 +198,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    showCustomToastOnRealUnlock: true,
     popupAnimation: true,
     decorativeElements: "none",
   },
@@ -213,6 +216,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "rounded",
     bannerStyle: "solid",
     rarityEffects: true,
+    showCustomToastOnRealUnlock: true,
     popupAnimation: true,
     decorativeElements: "none",
   },
@@ -230,6 +234,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    showCustomToastOnRealUnlock: true,
     popupAnimation: true,
     decorativeElements: "none",
   },
@@ -247,6 +252,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    showCustomToastOnRealUnlock: true,
     popupAnimation: true,
     decorativeElements: "none",
   },
@@ -264,25 +270,9 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    showCustomToastOnRealUnlock: true,
     popupAnimation: true,
     decorativeElements: "none",
-  },
-  "sky-day": {
-    primaryColor: "#5EA6D6",
-    secondaryColor: "#3D7EAE",
-    accentColor: "#ECCA2F",
-    textColor: "#FFF8E7",
-    descColor: "#FFF8E7",
-    glowEnabled: true,
-    glowIntensity: 15,
-    borderRadius: 14,
-    duration: 6000,
-    iconBorder: true,
-    iconShape: "circle",
-    bannerStyle: "gradient",
-    rarityEffects: true,
-    popupAnimation: true,
-    decorativeElements: "sky-day",
   },
   "sky-night": {
     primaryColor: "#2A2D3E",
@@ -298,6 +288,7 @@ const PRESETS: Record<string, Omit<ThemeSettings, "preset">> = {
     iconShape: "circle",
     bannerStyle: "gradient",
     rarityEffects: true,
+    showCustomToastOnRealUnlock: true,
     popupAnimation: true,
     decorativeElements: "sky-night",
   },
@@ -310,7 +301,6 @@ const PRESET_OPTIONS = [
   { data: "nintendo", label: "Nintendo" },
   { data: "gold", label: "Gold" },
   { data: "midnight", label: "Midnight" },
-  { data: "sky-day", label: "Sky Day" },
   { data: "sky-night", label: "Sky Night" },
   { data: "custom", label: "Custom" },
 ];
@@ -378,11 +368,8 @@ function buildAchievementPageCSS(s: ThemeSettings): string {
   `;
 }
 
-function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
-  const gradient =
-    variant === "sky-day"
-      ? "linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%)"
-      : "linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%)";
+function buildSkyCSS(_variant: "sky-night"): string {
+  const gradient = "linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%)";
 
   const common = `
     .achievement-customizer-toast {
@@ -427,8 +414,6 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
       height: 100%;
       position: relative;
     }
-    .ac-drift-back-clouds { animation: ac-drift-left 30s linear infinite; }
-    .ac-drift-front-clouds { animation: ac-drift-left 20s linear infinite; }
     .ac-drift-stars { animation: ac-drift-left 60s linear infinite; }
 
     @keyframes ac-drift-left {
@@ -437,75 +422,11 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .ac-sun, .ac-moon, .ac-star,
-      .ac-drift-back-clouds, .ac-drift-front-clouds, .ac-drift-stars {
+      .ac-moon, .ac-star, .ac-drift-stars {
         animation: none !important;
       }
     }
   `;
-
-  if (variant === "sky-day") {
-    return `${common}
-      .ac-sun {
-        position: absolute;
-        top: 12.5%;
-        right: 5.56%;
-        width: 38px; height: 38px;
-        background: #ECCA2F;
-        border-radius: 50%;
-        box-shadow:
-          inset 1px 1px 2px rgba(254, 255, 239, 0.6),
-          inset 0 -1px 2px rgba(161, 135, 42, 0.5);
-        animation: ac-sun-pulse 4s infinite ease-in-out;
-      }
-      @keyframes ac-sun-pulse {
-        0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.3)); }
-        50%      { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.6)); }
-      }
-
-      .ac-birds {
-        position: absolute;
-        top: 25%;
-        left: 38.89%;
-        opacity: 0.5;
-      }
-
-      .ac-cloud-1, .ac-cloud-2, .ac-cloud-3 {
-        position: absolute;
-        border-radius: 50%;
-      }
-      .ac-cloud-1 {
-        width: 45px; height: 45px;
-        background: #F3FDFF;
-        top: 72.92%; left: 4.17%;
-        box-shadow:
-          35px -10px 0 12px #F3FDFF,
-          75px 5px 0 -5px #F3FDFF,
-          -25px 8px 0 -8px #F3FDFF;
-      }
-      .ac-cloud-2 {
-        width: 55px; height: 55px;
-        background: #F3FDFF;
-        top: 67.71%; left: 52.78%;
-        box-shadow:
-          40px 12px 0 -5px #F3FDFF,
-          80px -8px 0 8px #F3FDFF,
-          -35px 15px 0 -12px #F3FDFF,
-          115px 15px 0 -10px #F3FDFF;
-      }
-      .ac-cloud-3 {
-        width: 48px; height: 48px;
-        background: #AACADF;
-        top: 58.33%; left: 27.78%;
-        box-shadow:
-          45px -8px 0 6px #AACADF,
-          95px 12px 0 -5px #AACADF,
-          -40px 12px 0 -10px #AACADF,
-          135px -5px 0 8px #AACADF,
-          185px 10px 0 -8px #AACADF;
-      }
-    `;
-  }
 
   return `${common}
     .ac-moon {
@@ -573,19 +494,9 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
         ? `background: ${s.primaryColor}cc !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important;`
         : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
 
-  const popupCSS = s.popupAnimation ? `
-    @keyframes toast-enter {
-      0% { opacity: 0; transform: scale(0.3); border-radius: 50%; }
-      40% { opacity: 1; transform: scale(1.05); border-radius: ${s.borderRadius * 2}px; }
-      70% { transform: scale(0.97); border-radius: ${s.borderRadius}px; }
-      100% { opacity: 1; transform: scale(1); border-radius: ${s.borderRadius}px; }
-    }
-  ` : "";
+  const popupCSS = buildPopupAnimationCSS(s, "toast-enter");
 
-  const skyCSS =
-    s.decorativeElements === "sky-day" || s.decorativeElements === "sky-night"
-      ? buildSkyCSS(s.decorativeElements)
-      : "";
+  const skyCSS = s.decorativeElements === "sky-night" ? buildSkyCSS("sky-night") : "";
 
   return `
     ${popupCSS}
@@ -618,6 +529,19 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
 let currentSettings: ThemeSettings = { preset: "xbox", ...PRESETS.xbox };
 let currentPageCssId: string | null = null;
 
+function buildPopupAnimationCSS(s: ThemeSettings, keyframeName: string): string {
+  if (!s.popupAnimation) return "";
+
+  return `
+    @keyframes ${keyframeName} {
+      0% { opacity: 0; transform: scale(0.3); border-radius: 50%; }
+      40% { opacity: 1; transform: scale(1.05); border-radius: ${s.borderRadius * 2}px; }
+      70% { transform: scale(0.97); border-radius: ${s.borderRadius}px; }
+      100% { opacity: 1; transform: scale(1); border-radius: ${s.borderRadius}px; }
+    }
+  `;
+}
+
 function buildNativeToastCSS(s: ThemeSettings): string {
   const ir = iconRadius(s.iconShape);
   const glow = s.glowEnabled
@@ -631,14 +555,7 @@ function buildNativeToastCSS(s: ThemeSettings): string {
         ? `background: ${s.primaryColor}cc !important; backdrop-filter: blur(10px) !important; -webkit-backdrop-filter: blur(10px) !important;`
         : `background: linear-gradient(135deg, ${s.primaryColor}, ${s.secondaryColor}) !important;`;
 
-  const popupCSS = s.popupAnimation ? `
-    @keyframes toast-enter {
-      0% { opacity: 0; transform: scale(0.3); border-radius: 50%; }
-      40% { opacity: 1; transform: scale(1.05); border-radius: ${s.borderRadius * 2}px; }
-      70% { transform: scale(0.97); border-radius: ${s.borderRadius}px; }
-      100% { opacity: 1; transform: scale(1); border-radius: ${s.borderRadius}px; }
-    }
-  ` : "";
+  const popupCSS = buildPopupAnimationCSS(s, "toast-enter-native");
 
   return `
     ${popupCSS}
@@ -658,13 +575,15 @@ function buildNativeToastCSS(s: ThemeSettings): string {
 
     div[role="alert"] > .Panel,
     div[role="alert"] > .Panel.Focusable,
-    div[role="alert"] > [role="button"] {
+    div[role="alert"] > [role="button"],
+    div[role="alert"] .Panel,
+    div[role="alert"] [role="button"] {
       ${bg}
       border: 2px solid ${s.accentColor} !important;
       border-radius: ${s.borderRadius}px !important;
       padding: 10px 14px !important;
       ${glow}
-      ${s.popupAnimation ? "animation: toast-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;" : ""}
+      ${s.popupAnimation ? "animation: toast-enter-native 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;" : ""}
     }
 
     .Panel ._1fEbX-PfpZ2FhkhttWcm-V {
@@ -716,77 +635,11 @@ function buildNativeToastCSS(s: ThemeSettings): string {
 // degraded fallback here: gradient background + a single sun/moon pseudo-element
 // with pulse. Drift clouds, birds, stars, and constellations are not possible
 // without DOM injection and are intentionally omitted on this surface.
-function buildNativeSkyCSS(variant: string | undefined): string {
-  if (variant === "sky-day") {
-    return `
-      div[role="alert"] > .Panel,
-      div[role="alert"] > .Panel.Focusable,
-      div[role="alert"] > [role="button"] {
-        background: linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%) !important;
-        position: relative !important;
-      }
-      div[role="alert"] > .Panel::before {
-        content: '';
-        position: absolute;
-        top: 12px;
-        right: 20px;
-        width: 38px;
-        height: 38px;
-        background: #ECCA2F;
-        border-radius: 50%;
-        box-shadow:
-          inset 1px 1px 2px rgba(254, 255, 239, 0.6),
-          inset 0 -1px 2px rgba(161, 135, 42, 0.5);
-        animation: ac-native-sun-pulse 4s infinite ease-in-out;
-        pointer-events: none;
-      }
-      @keyframes ac-native-sun-pulse {
-        0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.25)); }
-        50%      { filter: drop-shadow(0 0 16px rgba(236, 202, 47, 0.75)); }
-      }
-    `;
-  }
-  if (variant === "sky-night") {
-    return `
-      div[role="alert"] > .Panel,
-      div[role="alert"] > .Panel.Focusable,
-      div[role="alert"] > [role="button"] {
-        background: linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%) !important;
-        position: relative !important;
-      }
-      div[role="alert"] > .Panel::before {
-        content: '';
-        position: absolute;
-        top: 14px;
-        right: 22px;
-        width: 34px;
-        height: 34px;
-        background: #C4C9D1;
-        border-radius: 50%;
-        box-shadow:
-          inset 1px 1px 2px rgba(254, 255, 239, 0.5),
-          inset 0 -1px 2px rgba(150, 150, 150, 0.6);
-        animation: ac-native-moon-pulse 5s infinite ease-in-out;
-        pointer-events: none;
-      }
-      div[role="alert"] > .Panel::after {
-        content: '';
-        position: absolute;
-        top: 11px;
-        right: 14px;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        background: #2A2D3E;
-        pointer-events: none;
-      }
-      @keyframes ac-native-moon-pulse {
-        0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.2)); }
-        50%      { filter: drop-shadow(0 0 14px rgba(196, 201, 209, 0.6)); }
-      }
-    `;
-  }
-  return "";
+function buildNativeSkyCSS(variant: "sky-night" | string | undefined): string {
+  if (variant !== "sky-night") return "";
+  const root = '[role="alert"],[class*="Toast"][class*="Root"],._3YTh805w3-xgPkHE_22XcA';
+  const child = '[role="alert"]>div,[class*="Toast"][class*="Root"]>div,._3YTh805w3-xgPkHE_22XcA>div';
+  return `${root}{background:linear-gradient(160deg,#2A2D3E 0%,#1D1F2C 100%)!important;position:relative!important;overflow:hidden!important;isolation:isolate!important;}${child}{background:transparent!important;position:relative!important;z-index:0!important;}${root}::before{content:'';position:absolute;top:12px;right:20px;width:34px;height:34px;background:#C4C9D1;border-radius:50%;box-shadow:inset 1px 1px 2px rgba(254,255,239,0.5),inset 0 -1px 2px rgba(150,150,150,0.6),0 0 14px rgba(196,201,209,0.35);pointer-events:none;}${root}::after{content:'';position:absolute;top:9px;right:12px;width:34px;height:34px;background:#2A2D3E;border-radius:50%;pointer-events:none;}${child}::before{content:'';position:absolute;top:0;left:0;width:2px;height:2px;background:transparent;box-shadow:20px 8px 0 0 #fff,50px 18px 0 0 #fff,80px 30px 0 0 #fff,110px 12px 0 0 #fff,140px 25px 0 0 #fff,170px 8px 0 0 #fff,200px 32px 0 0 #fff,230px 15px 0 0 #fff,260px 42px 0 0 #fff,290px 20px 0 0 #fff,40px 50px 0 0 #fff,70px 52px 0 0 #fff,100px 55px 0 0 #fff,130px 58px 0 0 #fff,180px 48px 0 0 #fff,250px 50px 0 0 #fff;animation:ac-nt-1 2.4s ease-in-out infinite;will-change:opacity;pointer-events:none;z-index:-1;}${child}::after{content:'';position:absolute;top:0;left:0;width:2px;height:2px;background:transparent;box-shadow:35px 22px 0 0 #fff,65px 10px 0 0 #fff,95px 35px 0 0 #fff,125px 20px 0 0 #fff,155px 45px 0 0 #fff,185px 14px 0 0 #fff,215px 30px 0 0 #fff,245px 6px 0 0 #fff,275px 38px 0 0 #fff,305px 22px 0 0 #fff,15px 42px 0 0 #fff,45px 48px 0 0 #fff,85px 52px 0 0 #fff,120px 54px 0 0 #fff,155px 56px 0 0 #fff,220px 52px 0 0 #fff;animation:ac-nt-2 3.7s ease-in-out -1.8s infinite;will-change:opacity;pointer-events:none;z-index:-1;}@keyframes ac-nt-1{0%,100%{opacity:.25}50%{opacity:1}}@keyframes ac-nt-2{0%,100%{opacity:.3}50%{opacity:.95}}@media (prefers-reduced-motion: reduce){[role="alert"]::before,[role="alert"]::after,[role="alert"]>div::before,[role="alert"]>div::after{animation:none!important}}`;
 }
 
 function injectNotifCSS(s: ThemeSettings): void {
@@ -855,37 +708,7 @@ function ConstellationHalf() {
   );
 }
 
-function SkyDecorations({ variant }: { variant: "sky-day" | "sky-night" }) {
-  if (variant === "sky-day") {
-    return (
-      <div className="ac-sky-clip">
-        <div className="ac-sun" />
-        <svg className="ac-birds" viewBox="0 0 60 20" width="40" height="20">
-          <path d="M2 10 Q 7 2 12 10 Q 17 2 22 10" fill="none" stroke="#FFF8E7" strokeWidth="1.5" strokeLinecap="round" />
-          <path d="M25 15 Q 30 7 35 15 Q 40 7 45 15" fill="none" stroke="#FFF8E7" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        <div className="ac-drift-wrapper">
-          <div className="ac-drift-track ac-drift-back-clouds">
-            <div className="ac-drift-half"><div className="ac-cloud-3" /></div>
-            <div className="ac-drift-half"><div className="ac-cloud-3" /></div>
-          </div>
-        </div>
-        <div className="ac-drift-wrapper">
-          <div className="ac-drift-track ac-drift-front-clouds">
-            <div className="ac-drift-half">
-              <div className="ac-cloud-1" />
-              <div className="ac-cloud-2" />
-            </div>
-            <div className="ac-drift-half">
-              <div className="ac-cloud-1" />
-              <div className="ac-cloud-2" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+function SkyDecorations({ variant: _variant }: { variant: "sky-night" }) {
   return (
     <div className="ac-sky-clip">
       <div className="ac-moon" />
@@ -1005,10 +828,7 @@ function fireXboxToast(name: string, description: string, imageUrl: string, glob
     </div>
   ) : titleRow;
 
-  const skyVariant =
-    s.decorativeElements === "sky-day" || s.decorativeElements === "sky-night"
-      ? s.decorativeElements
-      : null;
+  const skyVariant = s.decorativeElements === "sky-night" ? "sky-night" : null;
 
   toaster.toast({
     logo: (
@@ -1326,6 +1146,14 @@ function Content() {
             onChange={(v) => update({ rarityEffects: v })}
           />
         </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
+            label="Show custom toast on real unlocks"
+            description="When off, only the native Steam toast (styled by your chosen preset) shows on real achievements. The test button still shows the custom toast."
+            checked={settings.showCustomToastOnRealUnlock}
+            onChange={(v) => update({ showCustomToastOnRealUnlock: v })}
+          />
+        </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Timing">
@@ -1385,6 +1213,9 @@ export default definePlugin(() => {
 
         if (!achieved) {
           console.warn("[AchievementCustomizer] Unrecognized achievement notification payload", notification);
+          return;
+        }
+        if (!currentSettings.showCustomToastOnRealUnlock) {
           return;
         }
 

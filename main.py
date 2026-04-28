@@ -22,6 +22,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "iconShape": "circle",
     "bannerStyle": "gradient",
     "rarityEffects": True,
+    "showCustomToastOnRealUnlock": True,
     "popupAnimation": True,
     "decorativeElements": "none",
 }
