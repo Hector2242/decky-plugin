@@ -378,25 +378,10 @@ function buildAchievementPageCSS(s: ThemeSettings): string {
   `;
 }
 
-function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
-  const gradient =
-    variant === "sky-day"
-      ? "linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%)"
-      : "linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%)";
-
-  const common = `
-    .achievement-customizer-toast {
-      position: relative !important;
-      background: ${gradient} !important;
-    }
-    .achievement-customizer-content {
-      position: static !important;
-    }
-    .achievement-customizer-content > *:not(:has(.ac-sky-clip)) {
-      position: relative !important;
-      z-index: 1 !important;
-    }
-
+// Shared CSS for all .ac-* sky elements — used by both test toast and native toast paths.
+// Contains no parent-class selectors so it works in any context.
+function buildSkyElementCSS(variant: "sky-day" | "sky-night"): string {
+  const base = `
     .ac-sky-clip {
       position: absolute;
       inset: 0;
@@ -404,11 +389,6 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
       pointer-events: none;
       z-index: 0;
       border-radius: inherit;
-    }
-
-    .ac-sky-clip ~ img {
-      position: relative !important;
-      z-index: 1 !important;
     }
 
     .ac-drift-wrapper {
@@ -445,7 +425,7 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
   `;
 
   if (variant === "sky-day") {
-    return `${common}
+    return `${base}
       .ac-sun {
         position: absolute;
         top: 12.5%;
@@ -507,7 +487,7 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
     `;
   }
 
-  return `${common}
+  return `${base}
     .ac-moon {
       position: absolute;
       top: 14.58%;
@@ -557,6 +537,32 @@ function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
       position: absolute;
       fill: #fff;
     }
+  `;
+}
+
+function buildSkyCSS(variant: "sky-day" | "sky-night"): string {
+  const gradient =
+    variant === "sky-day"
+      ? "linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%)"
+      : "linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%)";
+
+  return `
+    .achievement-customizer-toast {
+      position: relative !important;
+      background: ${gradient} !important;
+    }
+    .achievement-customizer-content {
+      position: static !important;
+    }
+    .achievement-customizer-content > *:not(:has(.ac-sky-clip)) {
+      position: relative !important;
+      z-index: 1 !important;
+    }
+    .ac-sky-clip ~ img {
+      position: relative !important;
+      z-index: 1 !important;
+    }
+    ${buildSkyElementCSS(variant)}
   `;
 }
 
@@ -618,6 +624,16 @@ function buildToastCSS(s: ThemeSettings, rarity?: RarityOverride | null): string
 let currentSettings: ThemeSettings = { preset: "xbox", ...PRESETS.xbox };
 let currentPageCssId: string | null = null;
 
+// Try all plausible notification webview names — the UID suffix changes between games/sessions.
+// Range 0–9 covers the observed rotation; failing tabs are silently ignored.
+const NOTIF_TAB_NAMES = [
+  "notificationtoasts_uid0", "notificationtoasts_uid1",
+  "notificationtoasts_uid2", "notificationtoasts_uid3",
+  "notificationtoasts_uid4", "notificationtoasts_uid5",
+  "notificationtoasts_uid6", "notificationtoasts_uid7",
+  "notificationtoasts_uid8", "notificationtoasts_uid9",
+];
+
 function buildNativeToastCSS(s: ThemeSettings): string {
   const ir = iconRadius(s.iconShape);
   const glow = s.glowEnabled
@@ -664,6 +680,7 @@ function buildNativeToastCSS(s: ThemeSettings): string {
       border-radius: ${s.borderRadius}px !important;
       padding: 10px 14px !important;
       ${glow}
+      position: relative !important;
       ${s.popupAnimation ? "animation: toast-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;" : ""}
     }
 
@@ -712,96 +729,264 @@ function buildNativeToastCSS(s: ThemeSettings): string {
   `;
 }
 
-// Native overlay is CSS-only (executeInTab can't add DOM). Sky presets get a
-// degraded fallback here: gradient background + a single sun/moon pseudo-element
-// with pulse. Drift clouds, birds, stars, and constellations are not possible
-// without DOM injection and are intentionally omitted on this surface.
+// CSS for the native notification toast's sky decorations.
+// ::before = crescent moon (sky-night) or sun (sky-day) — proven to render in Steam's WebKit.
+// Stars and clouds are DOM elements (.ac-star-*, .ac-cloud-*) injected by injectNotifCSS;
+// their CSS rules must live here (not in the Big Picture Mode stylesheet) so the
+// notification webview can resolve them.
 function buildNativeSkyCSS(variant: string | undefined): string {
+  const driftBase = `
+    div[role="alert"] .ac-sky-clip {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+      border-radius: inherit;
+    }
+    div[role="alert"] .ac-drift-wrapper {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    div[role="alert"] .ac-drift-track { display: flex; width: 200%; height: 100%; }
+    div[role="alert"] .ac-drift-half  { width: 50%; height: 100%; position: relative; }
+    @keyframes ac-drift-left {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    div[role="alert"] > .Panel > *:not(.ac-sky-clip),
+    div[role="alert"] > [role="button"] > *:not(.ac-sky-clip) {
+      position: relative !important;
+      z-index: 2 !important;
+    }
+  `;
+
   if (variant === "sky-day") {
     return `
       div[role="alert"] > .Panel,
       div[role="alert"] > .Panel.Focusable,
       div[role="alert"] > [role="button"] {
         background: linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%) !important;
-        position: relative !important;
       }
-      div[role="alert"] > .Panel::before {
+      div[role="alert"] > .Panel::before,
+      div[role="alert"] > [role="button"]::before {
         content: '';
         position: absolute;
-        top: 12px;
-        right: 20px;
-        width: 38px;
-        height: 38px;
+        top: 12px; right: 20px;
+        width: 38px; height: 38px;
         background: #ECCA2F;
         border-radius: 50%;
-        box-shadow:
-          inset 1px 1px 2px rgba(254, 255, 239, 0.6),
-          inset 0 -1px 2px rgba(161, 135, 42, 0.5);
+        box-shadow: inset 1px 1px 2px rgba(254,255,239,0.6), inset 0 -1px 2px rgba(161,135,42,0.5);
         animation: ac-native-sun-pulse 4s infinite ease-in-out;
         pointer-events: none;
+        z-index: 1;
       }
       @keyframes ac-native-sun-pulse {
-        0%, 100% { filter: drop-shadow(0 0 12px rgba(236, 202, 47, 0.25)); }
-        50%      { filter: drop-shadow(0 0 16px rgba(236, 202, 47, 0.75)); }
+        0%, 100% { filter: drop-shadow(0 0 12px rgba(236,202,47,0.25)); }
+        50%      { filter: drop-shadow(0 0 16px rgba(236,202,47,0.75)); }
       }
+      div[role="alert"] .ac-cloud-1,
+      div[role="alert"] .ac-cloud-2,
+      div[role="alert"] .ac-cloud-3 { position: absolute; border-radius: 50%; }
+      div[role="alert"] .ac-cloud-1 {
+        width: 45px; height: 45px; background: #F3FDFF; top: 72.92%; left: 4.17%;
+        box-shadow: 35px -10px 0 12px #F3FDFF, 75px 5px 0 -5px #F3FDFF, -25px 8px 0 -8px #F3FDFF;
+      }
+      div[role="alert"] .ac-cloud-2 {
+        width: 55px; height: 55px; background: #F3FDFF; top: 67.71%; left: 52.78%;
+        box-shadow: 40px 12px 0 -5px #F3FDFF, 80px -8px 0 8px #F3FDFF, -35px 15px 0 -12px #F3FDFF, 115px 15px 0 -10px #F3FDFF;
+      }
+      div[role="alert"] .ac-cloud-3 {
+        width: 48px; height: 48px; background: #AACADF; top: 58.33%; left: 27.78%;
+        box-shadow: 45px -8px 0 6px #AACADF, 95px 12px 0 -5px #AACADF, -40px 12px 0 -10px #AACADF, 135px -5px 0 8px #AACADF, 185px 10px 0 -8px #AACADF;
+      }
+      div[role="alert"] .ac-drift-back-clouds  { animation: ac-drift-left 30s linear infinite; }
+      div[role="alert"] .ac-drift-front-clouds { animation: ac-drift-left 20s linear infinite; }
+      ${driftBase}
     `;
   }
+
   if (variant === "sky-night") {
+    // Stars use DOM injection (same approach as sky-day clouds) because CSS @property
+    // animation is unreliable in Steam's notification webview CEF. DOM .ac-star elements
+    // with individual opacity animations are injected by injectNotifCSS + achievement
+    // callback retries (150ms, 500ms) AFTER Steam fills the Panel with achievement content.
+    // ::before handles the moon (CSS-only, survives any innerHTML reset).
     return `
       div[role="alert"] > .Panel,
       div[role="alert"] > .Panel.Focusable,
       div[role="alert"] > [role="button"] {
         background: linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%) !important;
-        position: relative !important;
       }
-      div[role="alert"] > .Panel::before {
+
+      div[role="alert"] > .Panel::before,
+      div[role="alert"] > [role="button"]::before {
         content: '';
         position: absolute;
-        top: 14px;
-        right: 22px;
-        width: 34px;
-        height: 34px;
-        background: #C4C9D1;
+        top: 14px; right: 22px;
+        width: 34px; height: 34px;
         border-radius: 50%;
-        box-shadow:
-          inset 1px 1px 2px rgba(254, 255, 239, 0.5),
-          inset 0 -1px 2px rgba(150, 150, 150, 0.6);
+        background:
+          radial-gradient(circle at 76% 41%, #2A2D3E 44%, transparent 45%),
+          radial-gradient(circle, #C4C9D1 100%, transparent 100%);
+        box-shadow: inset 1px 1px 2px rgba(254,255,239,0.5);
         animation: ac-native-moon-pulse 5s infinite ease-in-out;
         pointer-events: none;
-      }
-      div[role="alert"] > .Panel::after {
-        content: '';
-        position: absolute;
-        top: 11px;
-        right: 14px;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        background: #2A2D3E;
-        pointer-events: none;
+        z-index: 1;
       }
       @keyframes ac-native-moon-pulse {
-        0%, 100% { filter: drop-shadow(0 0 10px rgba(196, 201, 209, 0.2)); }
-        50%      { filter: drop-shadow(0 0 14px rgba(196, 201, 209, 0.6)); }
+        0%, 100% { filter: drop-shadow(0 0 10px rgba(196,201,209,0.25)); }
+        50%      { filter: drop-shadow(0 0 10px rgba(196,201,209,0.45)); }
+      }
+
+      div[role="alert"] .ac-sky-clip {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 0;
+        border-radius: inherit;
+      }
+      div[role="alert"] .ac-drift-wrapper {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      div[role="alert"] .ac-drift-track { display: flex; width: 200%; height: 100%; }
+      div[role="alert"] .ac-drift-half  { width: 50%; height: 100%; position: relative; }
+      div[role="alert"] .ac-drift-stars { animation: ac-drift-left 60s linear infinite; }
+      @keyframes ac-drift-left {
+        0%   { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+
+      div[role="alert"] .ac-star {
+        position: absolute;
+        background: #fff;
+        border-radius: 50%;
+        animation: ac-twinkle 2.5s infinite ease-in-out alternate;
+      }
+      div[role="alert"] .ac-star-1 { width: 2px; height: 2px; top: 18.75%; left: 38.89%; animation-delay: 0s; }
+      div[role="alert"] .ac-star-2 { width: 3px; height: 3px; top: 36.46%; left: 66.67%; animation-delay: 0.3s; }
+      div[role="alert"] .ac-star-3 { width: 2px; height: 2px; top: 72.92%; left: 30.56%; animation-delay: 0.7s; }
+      div[role="alert"] .ac-star-4 { width: 4px; height: 4px; top: 22.92%; left: 16.67%; animation-delay: 1.2s; }
+      div[role="alert"] .ac-star-5 { width: 2px; height: 2px; top: 57.29%; left: 86.11%; animation-delay: 1.8s; }
+      div[role="alert"] .ac-star-6 { width: 3px; height: 3px; top: 83.33%; left: 52.78%; animation-delay: 0.5s; }
+      div[role="alert"] .ac-star-7 { width: 2px; height: 2px; top: 46.88%; left: 5.56%;  animation-delay: 1.5s; }
+      div[role="alert"] .ac-star-8 { width: 2px; height: 2px; top: 67.71%; left: 75.00%; animation-delay: 0.9s; }
+      @keyframes ac-twinkle {
+        0%   { opacity: 0.4; }
+        100% { opacity: 1.0; }
+      }
+
+      div[role="alert"] .ac-constellation-path {
+        position: absolute;
+        fill: #fff;
+      }
+
+      div[role="alert"] > .Panel > *:not(.ac-sky-clip),
+      div[role="alert"] > [role="button"] > *:not(.ac-sky-clip) {
+        position: relative !important;
+        z-index: 2 !important;
       }
     `;
   }
+
   return "";
 }
 
+// Build a minified JS snippet that injects .ac-sky-clip DOM into existing Panel elements.
+function buildSkyInjectionSnippet(skyVariant: "sky-day" | "sky-night"): string {
+  const skyHTML = buildNativeSkyDOMHTML(skyVariant);
+  const esc = skyHTML.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
+  return `(function(){var _h=\`${esc}\`;function _inj(p){if(p.querySelector('.ac-sky-clip'))return;var t=document.createElement('div');t.innerHTML=_h;p.insertBefore(t.firstElementChild,p.firstChild);}document.querySelectorAll('div[role="alert"] > .Panel,div[role="alert"] > [role="button"]').forEach(function(p){_inj(p);});})();`;
+}
+
+// Injects CSS into every candidate notification tab.
+// Both sky-day and sky-night use DOM injection for animated elements so each gets
+// a MutationObserver that catches new notification Panels. sky-day injects clouds,
+// sky-night injects .ac-star elements (same approach, proven to survive innerHTML resets).
 function injectNotifCSS(s: ThemeSettings): void {
   const css = buildNativeToastCSS(s);
-  const escaped = css.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
-  executeInTab("notificationtoasts_uid2", false, `
-    (function() {
-      var el = document.getElementById("achievement-customizer-notif-css");
-      if (el) el.remove();
-      var style = document.createElement("style");
-      style.id = "achievement-customizer-notif-css";
-      style.textContent = \`${escaped}\`;
-      document.head.appendChild(style);
-    })();
-  `).catch(() => {});
+  const escapedCSS = css.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
+
+  const skyVariant = s.decorativeElements;
+  let skySetup = "if(window.__acSkyObs){window.__acSkyObs.disconnect();window.__acSkyObs=null;}if(window.__acSkyPoll){clearInterval(window.__acSkyPoll);window.__acSkyPoll=null;}";
+
+  if (skyVariant === "sky-day" || skyVariant === "sky-night") {
+    const skyHTML = buildNativeSkyDOMHTML(skyVariant as "sky-day" | "sky-night");
+    const escapedSkyHTML = skyHTML.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
+    // _poll runs entirely inside the webview (no IPC round-trip) so stars appear
+    // within one 100ms tick of content being added — regardless of external timing.
+    // The MutationObserver fires _poll synchronously on any DOM change as a fast path.
+    skySetup = `if(window.__acSkyObs){window.__acSkyObs.disconnect();window.__acSkyObs=null;}if(window.__acSkyPoll){clearInterval(window.__acSkyPoll);window.__acSkyPoll=null;}
+var _h=\`${escapedSkyHTML}\`;
+function _inj(p){if(p.querySelector('.ac-sky-clip'))return;var t=document.createElement('div');t.innerHTML=_h;p.insertBefore(t.firstElementChild,p.firstChild);}
+function _poll(){document.querySelectorAll('div[role="alert"] > .Panel,div[role="alert"] > [role="button"]').forEach(function(p){_inj(p);});}
+_poll();
+window.__acSkyPoll=setInterval(_poll,100);
+var _obs=new MutationObserver(function(){_poll();});
+_obs.observe(document.body,{childList:true,subtree:true});
+window.__acSkyObs=_obs;`;
+  }
+
+  const script = `(function(){var el=document.getElementById("achievement-customizer-notif-css");if(el)el.remove();var style=document.createElement("style");style.id="achievement-customizer-notif-css";style.textContent=\`${escapedCSS}\`;document.head.appendChild(style);${skySetup}})();`;
+  for (const tab of NOTIF_TAB_NAMES) {
+    executeInTab(tab, false, script).catch(() => {});
+  }
+}
+
+function buildConstellationHalfHTML(): string {
+  return CONSTELLATIONS.map((c) =>
+    `<svg class="ac-constellation-path" viewBox="133 0 8 9" style="position:absolute;top:${c.top};left:${c.left};width:${c.width};opacity:${c.opacity};fill:#fff;"><path d="${CONSTELLATION_PATH_D}"/></svg>`
+  ).join("");
+}
+
+// Returns the .ac-sky-clip HTML for stars/constellations (night) or birds/clouds (day).
+// Moon/sun are handled by CSS ::before/::after and must NOT be included here.
+// This HTML is embedded in the persistent MutationObserver set up by injectNotifCSS.
+function buildNativeSkyDOMHTML(variant: "sky-day" | "sky-night"): string {
+  let inner: string;
+  if (variant === "sky-night") {
+    const half = buildConstellationHalfHTML();
+    inner =
+      '<div class="ac-star ac-star-1"></div>' +
+      '<div class="ac-star ac-star-2"></div>' +
+      '<div class="ac-star ac-star-3"></div>' +
+      '<div class="ac-star ac-star-4"></div>' +
+      '<div class="ac-star ac-star-5"></div>' +
+      '<div class="ac-star ac-star-6"></div>' +
+      '<div class="ac-star ac-star-7"></div>' +
+      '<div class="ac-star ac-star-8"></div>' +
+      '<div class="ac-drift-wrapper">' +
+        '<div class="ac-drift-track ac-drift-stars">' +
+          `<div class="ac-drift-half">${half}</div>` +
+          `<div class="ac-drift-half">${half}</div>` +
+        '</div>' +
+      '</div>';
+  } else {
+    inner =
+      '<svg class="ac-birds" viewBox="0 0 60 20" width="40" height="20" style="position:absolute;top:25%;left:38.89%;opacity:0.5;">' +
+        '<path d="M2 10 Q 7 2 12 10 Q 17 2 22 10" fill="none" stroke="#FFF8E7" stroke-width="1.5" stroke-linecap="round"/>' +
+        '<path d="M25 15 Q 30 7 35 15 Q 40 7 45 15" fill="none" stroke="#FFF8E7" stroke-width="1.5" stroke-linecap="round"/>' +
+      '</svg>' +
+      '<div class="ac-drift-wrapper">' +
+        '<div class="ac-drift-track ac-drift-back-clouds">' +
+          '<div class="ac-drift-half"><div class="ac-cloud-3"></div></div>' +
+          '<div class="ac-drift-half"><div class="ac-cloud-3"></div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="ac-drift-wrapper">' +
+        '<div class="ac-drift-track ac-drift-front-clouds">' +
+          '<div class="ac-drift-half"><div class="ac-cloud-1"></div><div class="ac-cloud-2"></div></div>' +
+          '<div class="ac-drift-half"><div class="ac-cloud-1"></div><div class="ac-cloud-2"></div></div>' +
+        '</div>' +
+      '</div>';
+  }
+  return `<div class="ac-sky-clip">${inner}</div>`;
 }
 
 function reinjectAllCSS(s: ThemeSettings): void {
@@ -815,7 +1000,7 @@ function reinjectAllCSS(s: ThemeSettings): void {
   );
 
   injectNotifCSS(s);
-  // Retry in case the notification tab isn't ready yet at startup
+  // Retry after 5 s in case the notification tab hasn't loaded yet at startup
   setTimeout(() => injectNotifCSS(s), 5000);
 }
 
@@ -1376,6 +1561,11 @@ export default definePlugin(() => {
 
   const steamClient = (globalThis as typeof globalThis & { SteamClient?: SteamClientShape }).SteamClient;
   let unregister: RegisterHandle | undefined;
+  let reinjectionInterval: ReturnType<typeof setInterval> | undefined;
+
+  // Re-inject every 1 s so the webview-internal poll loop is always current after
+  // a game-switch resets the notification webview (new UID, clean JS context).
+  reinjectionInterval = setInterval(() => injectNotifCSS(currentSettings), 1000);
 
   const register = steamClient?.GameSessions?.RegisterForAchievementNotification;
   if (typeof register === "function") {
@@ -1386,6 +1576,23 @@ export default definePlugin(() => {
         if (!achieved) {
           console.warn("[AchievementCustomizer] Unrecognized achievement notification payload", notification);
           return;
+        }
+
+        // Re-inject CSS on every achievement (handles UID tab rotation).
+        // sky-night stars live in the Panel CSS background — no extra DOM work needed.
+        // sky-day clouds need DOM; retry at 150 ms and 500 ms for timing safety.
+        injectNotifCSS(currentSettings);
+
+        const skyElem = currentSettings.decorativeElements;
+        if (skyElem === "sky-day" || skyElem === "sky-night") {
+          const snippet = buildSkyInjectionSnippet(skyElem);
+          [0, 100].forEach((delay) => {
+            setTimeout(() => {
+              for (const tab of NOTIF_TAB_NAMES) {
+                executeInTab(tab, false, snippet).catch(() => {});
+              }
+            }, delay);
+          });
         }
 
         fireXboxToast(
@@ -1408,14 +1615,15 @@ export default definePlugin(() => {
     content: <Content />,
     icon: <FaPalette />,
     onDismount() {
+      if (reinjectionInterval) clearInterval(reinjectionInterval);
       unregister?.unregister?.();
       if (currentPageCssId) {
         removeCssFromTab("Steam Big Picture Mode", currentPageCssId);
       }
-      executeInTab("notificationtoasts_uid2", false, `
-        var el = document.getElementById("achievement-customizer-notif-css");
-        if (el) el.remove();
-      `).catch(() => {});
+      const cleanup = `(function(){var el=document.getElementById("achievement-customizer-notif-css");if(el)el.remove();if(window.__acSkyObs){window.__acSkyObs.disconnect();window.__acSkyObs=null;}if(window.__acSkyPoll){clearInterval(window.__acSkyPoll);window.__acSkyPoll=null;}document.querySelectorAll(".ac-sky-clip").forEach(function(e){e.remove();});})();`;
+      for (const tab of NOTIF_TAB_NAMES) {
+        executeInTab(tab, false, cleanup).catch(() => {});
+      }
     },
   };
 });
