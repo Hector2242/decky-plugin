@@ -519,14 +519,22 @@ function buildSkyElementCSS(variant: "sky-day" | "sky-night"): string {
       border-radius: 50%;
       animation: ac-twinkle 2.5s infinite ease-in-out alternate;
     }
-    .ac-star-1 { width: 2px; height: 2px; top: 18.75%; left: 38.89%; animation-delay: 0s; }
-    .ac-star-2 { width: 3px; height: 3px; top: 36.46%; left: 66.67%; animation-delay: 0.3s; }
-    .ac-star-3 { width: 2px; height: 2px; top: 72.92%; left: 30.56%; animation-delay: 0.7s; }
-    .ac-star-4 { width: 4px; height: 4px; top: 22.92%; left: 16.67%; animation-delay: 1.2s; }
-    .ac-star-5 { width: 2px; height: 2px; top: 57.29%; left: 86.11%; animation-delay: 1.8s; }
-    .ac-star-6 { width: 3px; height: 3px; top: 83.33%; left: 52.78%; animation-delay: 0.5s; }
-    .ac-star-7 { width: 2px; height: 2px; top: 46.88%; left: 5.56%; animation-delay: 1.5s; }
-    .ac-star-8 { width: 2px; height: 2px; top: 67.71%; left: 75.00%; animation-delay: 0.9s; }
+    .ac-star-1  { width: 2px; height: 2px; top: 18.75%; left: 38.89%; animation-delay: 0s; }
+    .ac-star-2  { width: 3px; height: 3px; top: 36.46%; left: 66.67%; animation-delay: 0.3s; }
+    .ac-star-3  { width: 2px; height: 2px; top: 72.92%; left: 30.56%; animation-delay: 0.7s; }
+    .ac-star-4  { width: 4px; height: 4px; top: 22.92%; left: 16.67%; animation-delay: 1.2s; }
+    .ac-star-5  { width: 2px; height: 2px; top: 57.29%; left: 86.11%; animation-delay: 1.8s; }
+    .ac-star-6  { width: 3px; height: 3px; top: 83.33%; left: 52.78%; animation-delay: 0.5s; }
+    .ac-star-7  { width: 2px; height: 2px; top: 46.88%; left:  5.56%; animation-delay: 1.5s; }
+    .ac-star-8  { width: 2px; height: 2px; top: 67.71%; left: 75.00%; animation-delay: 0.9s; }
+    .ac-star-9  { width: 2px; height: 2px; top:  7%;    left: 55%;    animation-delay: 0.4s; animation-duration: 1.8s; }
+    .ac-star-10 { width: 2px; height: 2px; top: 33%;    left: 42%;    animation-delay: 1.1s; }
+    .ac-star-11 { width: 3px; height: 3px; top: 20%;    left: 84%;    animation-delay: 0.8s; animation-duration: 3.5s; }
+    .ac-star-12 { width: 2px; height: 2px; top: 50%;    left: 20%;    animation-delay: 1.6s; }
+    .ac-star-13 { width: 2px; height: 2px; top: 38%;    left: 63%;    animation-delay: 0.2s; }
+    .ac-star-14 { width: 2px; height: 2px; top: 63%;    left: 11%;    animation-delay: 1.9s; animation-duration: 1.8s; }
+    .ac-star-15 { width: 3px; height: 3px; top: 77%;    left: 68%;    animation-delay: 0.6s; animation-duration: 3.5s; }
+    .ac-star-16 { width: 2px; height: 2px; top: 35%;    left:  9%;    animation-delay: 1.3s; }
 
     @keyframes ac-twinkle {
       0%   { opacity: 0.4; }
@@ -879,14 +887,22 @@ function buildNativeSkyCSS(variant: string | undefined): string {
         border-radius: 50%;
         animation: ac-twinkle 2.5s infinite ease-in-out alternate;
       }
-      div[role="alert"] .ac-star-1 { width: 2px; height: 2px; top: 10%;   left: 8%;   animation-delay: 0s; }
-      div[role="alert"] .ac-star-2 { width: 3px; height: 3px; top: 25%;   left: 86%;  animation-delay: 0.3s; }
-      div[role="alert"] .ac-star-3 { width: 2px; height: 2px; top: 72%;   left: 28%;  animation-delay: 0.7s; }
-      div[role="alert"] .ac-star-4 { width: 4px; height: 4px; top: 15%;   left: 90%;  animation-delay: 1.2s; }
-      div[role="alert"] .ac-star-5 { width: 2px; height: 2px; top: 58%;   left: 88%;  animation-delay: 1.8s; }
-      div[role="alert"] .ac-star-6 { width: 3px; height: 3px; top: 83%;   left: 52%;  animation-delay: 0.5s; }
-      div[role="alert"] .ac-star-7 { width: 2px; height: 2px; top: 45%;   left: 6%;   animation-delay: 1.5s; }
-      div[role="alert"] .ac-star-8 { width: 2px; height: 2px; top: 68%;   left: 85%;  animation-delay: 0.9s; }
+      div[role="alert"] .ac-star-1  { width: 2px; height: 2px; top: 10%;  left:  8%;  animation-delay: 0s; }
+      div[role="alert"] .ac-star-2  { width: 3px; height: 3px; top: 25%;  left: 86%;  animation-delay: 0.3s; }
+      div[role="alert"] .ac-star-3  { width: 2px; height: 2px; top: 72%;  left: 28%;  animation-delay: 0.7s; }
+      div[role="alert"] .ac-star-4  { width: 4px; height: 4px; top: 15%;  left: 90%;  animation-delay: 1.2s; }
+      div[role="alert"] .ac-star-5  { width: 2px; height: 2px; top: 58%;  left: 88%;  animation-delay: 1.8s; }
+      div[role="alert"] .ac-star-6  { width: 3px; height: 3px; top: 83%;  left: 52%;  animation-delay: 0.5s; }
+      div[role="alert"] .ac-star-7  { width: 2px; height: 2px; top: 45%;  left:  6%;  animation-delay: 1.5s; }
+      div[role="alert"] .ac-star-8  { width: 2px; height: 2px; top: 68%;  left: 85%;  animation-delay: 0.9s; }
+      div[role="alert"] .ac-star-9  { width: 2px; height: 2px; top:  7%;  left: 55%;  animation-delay: 0.4s; animation-duration: 1.8s; }
+      div[role="alert"] .ac-star-10 { width: 2px; height: 2px; top: 33%;  left: 42%;  animation-delay: 1.1s; }
+      div[role="alert"] .ac-star-11 { width: 3px; height: 3px; top: 20%;  left: 84%;  animation-delay: 0.8s; animation-duration: 3.5s; }
+      div[role="alert"] .ac-star-12 { width: 2px; height: 2px; top: 50%;  left: 20%;  animation-delay: 1.6s; }
+      div[role="alert"] .ac-star-13 { width: 2px; height: 2px; top: 38%;  left: 63%;  animation-delay: 0.2s; }
+      div[role="alert"] .ac-star-14 { width: 2px; height: 2px; top: 63%;  left: 11%;  animation-delay: 1.9s; animation-duration: 1.8s; }
+      div[role="alert"] .ac-star-15 { width: 3px; height: 3px; top: 77%;  left: 68%;  animation-delay: 0.6s; animation-duration: 3.5s; }
+      div[role="alert"] .ac-star-16 { width: 2px; height: 2px; top: 35%;  left:  9%;  animation-delay: 1.3s; }
       @keyframes ac-twinkle {
         0%   { opacity: 0.4; }
         100% { opacity: 1.0; }
@@ -971,6 +987,14 @@ function buildNativeSkyDOMHTML(variant: "sky-day" | "sky-night"): string {
       '<div class="ac-star ac-star-6"></div>' +
       '<div class="ac-star ac-star-7"></div>' +
       '<div class="ac-star ac-star-8"></div>' +
+      '<div class="ac-star ac-star-9"></div>' +
+      '<div class="ac-star ac-star-10"></div>' +
+      '<div class="ac-star ac-star-11"></div>' +
+      '<div class="ac-star ac-star-12"></div>' +
+      '<div class="ac-star ac-star-13"></div>' +
+      '<div class="ac-star ac-star-14"></div>' +
+      '<div class="ac-star ac-star-15"></div>' +
+      '<div class="ac-star ac-star-16"></div>' +
       '<div class="ac-drift-wrapper">' +
         '<div class="ac-drift-track ac-drift-stars">' +
           `<div class="ac-drift-half">${half}</div>` +
@@ -1092,6 +1116,14 @@ function SkyDecorations({ variant }: { variant: "sky-day" | "sky-night" }) {
       <div className="ac-star ac-star-6" />
       <div className="ac-star ac-star-7" />
       <div className="ac-star ac-star-8" />
+      <div className="ac-star ac-star-9" />
+      <div className="ac-star ac-star-10" />
+      <div className="ac-star ac-star-11" />
+      <div className="ac-star ac-star-12" />
+      <div className="ac-star ac-star-13" />
+      <div className="ac-star ac-star-14" />
+      <div className="ac-star ac-star-15" />
+      <div className="ac-star ac-star-16" />
       <div className="ac-drift-wrapper">
         <div className="ac-drift-track ac-drift-stars">
           <ConstellationHalf />
