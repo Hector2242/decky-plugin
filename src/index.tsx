@@ -819,6 +819,7 @@ function buildNativeSkyCSS(variant: string | undefined): string {
       div[role="alert"] > .Panel.Focusable,
       div[role="alert"] > [role="button"] {
         background: linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%) !important;
+        padding-right: 62px !important;
       }
 
       div[role="alert"] > .Panel::before,
@@ -839,6 +840,15 @@ function buildNativeSkyCSS(variant: string | undefined): string {
       @keyframes ac-native-moon-pulse {
         0%, 100% { filter: drop-shadow(0 0 10px rgba(196,201,209,0.25)); }
         50%      { filter: drop-shadow(0 0 10px rgba(196,201,209,0.45)); }
+      }
+
+      .Panel ._18PwvOcpWfW3M8j2-bEPPJ {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-shadow: 0 0 8px rgba(20,22,35,0.9), 0 1px 3px rgba(0,0,0,0.6) !important;
+      }
+      .Panel ._2jpxEWvo06efD6-NR1cplA {
+        text-shadow: 0 0 6px rgba(20,22,35,0.9), 0 1px 2px rgba(0,0,0,0.5) !important;
       }
 
       div[role="alert"] .ac-sky-clip {
@@ -869,14 +879,14 @@ function buildNativeSkyCSS(variant: string | undefined): string {
         border-radius: 50%;
         animation: ac-twinkle 2.5s infinite ease-in-out alternate;
       }
-      div[role="alert"] .ac-star-1 { width: 2px; height: 2px; top: 18.75%; left: 38.89%; animation-delay: 0s; }
-      div[role="alert"] .ac-star-2 { width: 3px; height: 3px; top: 36.46%; left: 66.67%; animation-delay: 0.3s; }
-      div[role="alert"] .ac-star-3 { width: 2px; height: 2px; top: 72.92%; left: 30.56%; animation-delay: 0.7s; }
-      div[role="alert"] .ac-star-4 { width: 4px; height: 4px; top: 22.92%; left: 16.67%; animation-delay: 1.2s; }
-      div[role="alert"] .ac-star-5 { width: 2px; height: 2px; top: 57.29%; left: 86.11%; animation-delay: 1.8s; }
-      div[role="alert"] .ac-star-6 { width: 3px; height: 3px; top: 83.33%; left: 52.78%; animation-delay: 0.5s; }
-      div[role="alert"] .ac-star-7 { width: 2px; height: 2px; top: 46.88%; left: 5.56%;  animation-delay: 1.5s; }
-      div[role="alert"] .ac-star-8 { width: 2px; height: 2px; top: 67.71%; left: 75.00%; animation-delay: 0.9s; }
+      div[role="alert"] .ac-star-1 { width: 2px; height: 2px; top: 10%;   left: 8%;   animation-delay: 0s; }
+      div[role="alert"] .ac-star-2 { width: 3px; height: 3px; top: 25%;   left: 86%;  animation-delay: 0.3s; }
+      div[role="alert"] .ac-star-3 { width: 2px; height: 2px; top: 72%;   left: 28%;  animation-delay: 0.7s; }
+      div[role="alert"] .ac-star-4 { width: 4px; height: 4px; top: 15%;   left: 90%;  animation-delay: 1.2s; }
+      div[role="alert"] .ac-star-5 { width: 2px; height: 2px; top: 58%;   left: 88%;  animation-delay: 1.8s; }
+      div[role="alert"] .ac-star-6 { width: 3px; height: 3px; top: 83%;   left: 52%;  animation-delay: 0.5s; }
+      div[role="alert"] .ac-star-7 { width: 2px; height: 2px; top: 45%;   left: 6%;   animation-delay: 1.5s; }
+      div[role="alert"] .ac-star-8 { width: 2px; height: 2px; top: 68%;   left: 85%;  animation-delay: 0.9s; }
       @keyframes ac-twinkle {
         0%   { opacity: 0.4; }
         100% { opacity: 1.0; }
