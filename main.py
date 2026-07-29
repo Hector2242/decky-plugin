@@ -24,6 +24,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "rarityEffects": True,
     "popupAnimation": True,
     "decorativeElements": "none",
+    "entranceStyle": "pop",
+    "shineEnabled": True,
 }
 
 
@@ -56,6 +58,13 @@ class Plugin:
 
     async def get_default_settings(self) -> dict:
         return DEFAULT_SETTINGS.copy()
+
+    # TEMPORARY DIAGNOSTIC — remove once the native-toast DOM is characterized.
+    # The frontend console is not visible in journalctl, so the DOM probe routes
+    # its findings through the backend logger instead.
+    async def debug_log(self, message: str) -> bool:
+        decky.logger.info(f"[AC-PROBE] {message}")
+        return True
 
     async def _main(self):
         decky.logger.info("Achievement Customizer plugin loaded")
