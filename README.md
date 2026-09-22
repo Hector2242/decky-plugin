@@ -7,8 +7,6 @@ in the Quick Access menu is the one that shows up in game.
 
 ![Achievement Customizer presets](assets/store.png)
 
-> Previously named *Xbox Achievements*. Existing settings are migrated automatically.
-
 ## Features
 
 - **Entrance animations** — Unfold (Xbox: the icon disc pops in and the card unfolds out of it),
