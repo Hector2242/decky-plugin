@@ -30,38 +30,7 @@ in the Quick Access menu is the one that shows up in game.
 
 ## Installation
 
-Install from the Decky Plugin Store, or manually:
-
-1. Download the latest release zip
-2. Extract it into `~/homebrew/plugins/`
-3. Restart Decky Loader (`sudo systemctl restart plugin_loader`)
-
-## Usage
-
-Open the Quick Access menu, pick **Achievement Customizer**, and change anything — every setting
-applies immediately. Choosing a preset applies a complete theme; editing a color switches the preset
-to *Custom*.
-
-Test toasts go through Steam's own notification system. If nothing appears, make sure achievement
-notifications are enabled in Steam Settings › Notifications, and that toasts are not disabled while
-in game.
-
-Settings are stored in `~/homebrew/settings/Achievement Customizer/settings.json`.
-
-## Development
-
-Requires Node.js 16.14+ and pnpm 9.
-
-```bash
-pnpm i
-pnpm run build      # builds dist/index.js
-pnpm run watch
-```
-
-To package a store-style zip with the Decky CLI:
-
-```bash
-./cli/decky plugin build .
+It has not yet been reviewed or approved by the Decky-plugin developers. For the time being it is currently in development. 
 ```
 
 ## License
