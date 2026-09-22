@@ -4,8 +4,12 @@
   "flags": [],
   "api_version": 2,
   "publish": {
-    "tags": ["customization", "achievements", "notifications"],
-    "description": "Customize Steam achievement notifications with themed toast popups (Xbox, PlayStation, Steam, Nintendo, and more).",
-    "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
+    "tags": [
+      "customization",
+      "achievements",
+      "notifications"
+    ],
+    "description": "Give Steam Deck achievement notifications console-style looks and animations: Xbox unfold, PlayStation drop, rarity glow, sky themes and full color control.",
+    "image": "https://raw.githubusercontent.com/Hector2242/decky-plugin/main/assets/store.png"
   }
 }
