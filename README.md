@@ -1,89 +1,70 @@
 # Achievement Customizer
 
-A [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) plugin for Steam Deck that replaces Steam's default achievement toast notifications with fully customizable, themed popups. Ships with presets inspired by other consoles and storefronts, plus complete color and effect control.
+A [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) plugin that gives Steam Deck
+achievement notifications the look and motion of console unlock toasts. The native Steam toast is
+replaced in place, so there is nothing to time, nothing doubles up, and the same toast you preview
+in the Quick Access menu is the one that shows up in game.
 
-> Previously named *Xbox Achievements*. Renamed in 2.0.0 — existing user settings are migrated automatically on first load.
+![Achievement Customizer presets](assets/store.png)
+
+> Previously named *Xbox Achievements*. Existing settings are migrated automatically.
 
 ## Features
 
-- **Theme Presets** — Xbox, PlayStation, Steam, Nintendo, Gold, Midnight, Sky Day, and Sky Night out of the box
-- **Full Color Customization** — Primary, secondary, accent, title text, and description text
-- **Banner Styles** — Gradient, solid, or glass (blur) backgrounds
-- **Icon Styling** — Circle, rounded, or square icon shapes with optional glowing borders
-- **Animated Decorations** — Overlays that animate for the whole life of the notification:
-  - Sparkles — twinkling four-point sparkles tinted to your accent color; works with any theme
-  - Sky Day — drifting clouds, a pulsing sun, and birds
-  - Sky Night — twinkling stars, drifting constellations, and a glowing crescent moon
-- **Entrance Animations** — Choose how notifications arrive: Pop, Slide In, Fade, or Bounce
-- **Shine Sweep** — A light sweep crosses the notification as it appears, brighter for rare unlocks
-- **Glow Effects** — Configurable glow intensity around notifications
-- **Rarity Effects** — Special animated effects based on achievement rarity:
-  - Ultra Rare (< 1%) — Diamond cyan glow with pulsing animation
-  - Rare (< 10%) — Gold glow with pulsing animation
-  - Uncommon (< 25%) — Subtle shimmer
-- **Achievement Page Styling** — Themes carry over to the achievements list page
-- **Adjustable Duration** — Control how long notifications stay on screen (3–15s)
-- **Animated Live Preview** — The preview card in the panel plays your actual entrance, shine, and decoration animations, replaying every time you change a setting
-- **Persistent Settings** — Choices are saved and restored between sessions
-- **Respects Reduced Motion** — All animations disable themselves when the system requests reduced motion
-
-## Screenshots
-
-*(Screenshots / GIFs will be added here.)*
+- **Entrance animations** — Unfold (Xbox: the icon disc pops in and the card unfolds out of it),
+  Drop (PlayStation: settles in from above with a pass of light around the icon), Slide, Pop,
+  Bounce and Fade. Slides come from whichever screen edge Steam places toasts on.
+- **Presets** — Xbox, PlayStation, Steam, Nintendo, Gold, Midnight, Sky Day, Sky Night, each with
+  its own colors, shape and entrance.
+- **Rarity** — the global unlock percentage is shown on every toast; unlocks under 10% get a gold
+  ring and glow, under 1% a diamond one. Under 25% is called out as uncommon.
+- **Progress toasts** — partial achievement progress shows an animated bar instead of a description.
+- **Decorations** — Sparkles, a drifting daytime sky with sun and clouds, or a night sky with
+  twinkling stars, constellations and a crescent moon.
+- **Full control** — primary, secondary, accent, title and description colors; gradient, solid or
+  glass banner; icon shape and border; corner rounding; glow intensity; shine sweep; duration.
+- **Live preview and real test toasts** — the preview replays your changes as you make them, and the
+  test buttons send genuine achievement notifications through Steam so the result is exactly what
+  an unlock will look like (sound included, without cluttering the notification tray).
+- Respects the system reduced-motion setting.
 
 ## Installation
 
-Install via the Decky Plugin Store, or manually:
+Install from the Decky Plugin Store, or manually:
 
-1. Download the latest release from the GitHub releases page
-2. Extract into `~/homebrew/plugins/` on your Steam Deck
+1. Download the latest release zip
+2. Extract it into `~/homebrew/plugins/`
 3. Restart Decky Loader (`sudo systemctl restart plugin_loader`)
-4. Open the Decky sidebar and select **Achievement Customizer**
 
-## Configuration
+## Usage
 
-Open the plugin panel from the Decky sidebar. Every change applies live — no restart needed.
+Open the Quick Access menu, pick **Achievement Customizer**, and change anything — every setting
+applies immediately. Choosing a preset applies a complete theme; editing a color switches the preset
+to *Custom*.
 
-- **Preset** — Apply a complete theme with one click. Any color change automatically switches the preset to *Custom*.
-- **Colors** — Individually set Primary, Secondary, Accent, Title Text, and Description Text colors.
-- **Style** — Banner style (gradient / solid / glass), icon shape, icon border, toast corner rounding, and animated decorations (Sparkles / Sky Day / Sky Night).
-- **Effects** — Entrance animation and style (Pop / Slide In / Fade / Bounce), shine sweep, glow effect + intensity, and rarity-based effects.
-- **Timing** — Notification display duration.
-- **Reset** — Restore factory defaults.
+Test toasts go through Steam's own notification system. If nothing appears, make sure achievement
+notifications are enabled in Steam Settings › Notifications, and that toasts are not disabled while
+in game.
 
-Sparkles keep your chosen banner colors and layer on top of them. The Sky decorations replace
-the background with their own sky gradient, so they look the same on any preset.
-
-Settings persist at `~/homebrew/settings/Achievement Customizer/settings.json`.
+Settings are stored in `~/homebrew/settings/Achievement Customizer/settings.json`.
 
 ## Development
 
-### Dependencies
-
-- Node.js v16.14+
-- pnpm v9
-
-```bash
-sudo npm i -g pnpm@9
-```
-
-### Build
+Requires Node.js 16.14+ and pnpm 9.
 
 ```bash
 pnpm i
-pnpm run build
+pnpm run build      # builds dist/index.js
+pnpm run watch
 ```
 
-To build a deployable zip, use the Decky CLI (installed via `.vscode/setup.sh`):
+To package a store-style zip with the Decky CLI:
 
 ```bash
 ./cli/decky plugin build .
 ```
 
-## Credits
-
-Built on the [decky-plugin-template](https://github.com/SteamDeckHomebrew/decky-plugin-template) by the Steam Deck Homebrew project. The template's BSD-3-Clause license is preserved in the `LICENSE` file at the repo root.
-
 ## License
 
-BSD-3-Clause
+BSD-3-Clause. Built on the [decky-plugin-template](https://github.com/SteamDeckHomebrew/decky-plugin-template);
+the original template license is preserved in `LICENSE`.

@@ -7,6 +7,7 @@ import decky
 
 SETTINGS_FILE = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
 
+# Mirrors the xbox preset in src/settings.ts; keep the two in sync.
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "preset": "xbox",
     "primaryColor": "#107C10",
@@ -24,7 +25,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "rarityEffects": True,
     "popupAnimation": True,
     "decorativeElements": "none",
-    "entranceStyle": "pop",
+    "entranceStyle": "unfold",
     "shineEnabled": True,
 }
 
@@ -48,60 +49,52 @@ class Plugin:
         return {**DEFAULT_SETTINGS, **saved}
 
     async def save_settings(self, settings: dict) -> bool:
-        merged = {**DEFAULT_SETTINGS, **settings}
-        os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+        if not isinstance(settings, dict):
+            decky.logger.warning("Ignoring settings that are not an object")
+            return False
 
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(merged, f, indent=2)
+        merged = {**DEFAULT_SETTINGS, **settings}
+        try:
+            os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
+            with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+                json.dump(merged, f, indent=2)
+        except (OSError, TypeError) as error:
+            decky.logger.error(f"Failed to save settings: {error}")
+            return False
 
         return True
 
     async def get_default_settings(self) -> dict:
         return DEFAULT_SETTINGS.copy()
 
-    # TEMPORARY DIAGNOSTIC — remove once the native-toast DOM is characterized.
-    # The frontend console is not visible in journalctl, so the DOM probe routes
-    # its findings through the backend logger instead.
-    async def debug_log(self, message: str) -> bool:
-        decky.logger.info(f"[AC-PROBE] {message}")
-        return True
-
     async def _main(self):
-        decky.logger.info("Achievement Customizer plugin loaded")
+        decky.logger.info("Achievement Customizer loaded")
 
     async def _unload(self):
-        decky.logger.info("Achievement Customizer plugin unloaded")
+        decky.logger.info("Achievement Customizer unloaded")
 
     async def _uninstall(self):
         if os.path.exists(SETTINGS_FILE):
             os.remove(SETTINGS_FILE)
 
     async def _migration(self):
-        # Non-destructive migration: copy settings from the pre-rename location into the
-        # current DECKY_PLUGIN_SETTINGS_DIR. We intentionally do NOT use decky.migrate_settings()
-        # because it removes the old locations; we leave the old files in place so a user who
-        # rolls back to a prior plugin version still has their data.
-        new_settings = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
-        if os.path.exists(new_settings):
-            decky.logger.info(
-                f"Settings already present at {new_settings}, skipping migration"
-            )
+        # The plugin used to be called "Xbox Achievements". Copy (never move) the old
+        # settings so rolling back to an older version still finds them.
+        if os.path.exists(SETTINGS_FILE):
             return
 
         candidates = [
-            # Directory form — display name (path used before the rename to Achievement Customizer)
             os.path.join(decky.DECKY_HOME, "settings", "Xbox Achievements", "settings.json"),
-            # Directory form — kebab-case
             os.path.join(decky.DECKY_HOME, "settings", "xbox-achievements", "settings.json"),
-            # Legacy single-file path (what the original _migration targeted)
             os.path.join(decky.DECKY_HOME, "settings", "xbox-achievements.json"),
         ]
 
         for src in candidates:
             if os.path.exists(src):
-                os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
-                shutil.copy2(src, new_settings)
-                decky.logger.info(f"Migrated settings from {src} to {new_settings}")
+                try:
+                    os.makedirs(decky.DECKY_PLUGIN_SETTINGS_DIR, exist_ok=True)
+                    shutil.copy2(src, SETTINGS_FILE)
+                    decky.logger.info(f"Migrated settings from {src}")
+                except OSError as error:
+                    decky.logger.error(f"Failed to migrate settings from {src}: {error}")
                 return
-
-        decky.logger.info("No prior settings found to migrate")
