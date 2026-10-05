@@ -173,6 +173,8 @@ const TEST_BUTTONS: { key: keyof typeof SAMPLES; label: string; description: str
 export function Panel() {
   const [settings, setSettings] = useState<ThemeSettings>(getCurrentSettings());
   const [loaded, setLoaded] = useState(false);
+  // Steam's Reduce Motion setting reaches every CEF window as prefers-reduced-motion.
+  const [steamReducesMotion] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   useEffect(() => {
     getSettings()
@@ -294,6 +296,16 @@ export function Panel() {
       </PanelSection>
 
       <PanelSection title="Effects">
+        {steamReducesMotion && (
+          <PanelSectionRow>
+            <ToggleField
+              label="Animate anyway"
+              description="Steam's Reduce Motion is on, so toasts use simple fades. Turn this on for full animations."
+              checked={settings.ignoreReducedMotion}
+              onChange={(v) => update({ ignoreReducedMotion: v })}
+            />
+          </PanelSectionRow>
+        )}
         <PanelSectionRow>
           <ToggleField
             label="Entrance Animation"

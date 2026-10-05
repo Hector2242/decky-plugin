@@ -7,12 +7,14 @@ export type PresetName =
   | "midnight"
   | "sky-day"
   | "sky-night"
+  | "pixel-day"
+  | "pixel-night"
   | "custom";
 
 export const ICON_SHAPES = ["circle", "rounded", "square"] as const;
 export const BANNER_STYLES = ["gradient", "solid", "glass"] as const;
-export const DECORATIONS = ["none", "sparkles", "sky-day", "sky-night"] as const;
-export const ENTRANCE_STYLES = ["pop", "slide", "fade", "bounce", "unfold", "drop"] as const;
+export const DECORATIONS = ["none", "sparkles", "sky-day", "sky-night", "pixel-day", "pixel-night"] as const;
+export const ENTRANCE_STYLES = ["pop", "slide", "fade", "bounce", "unfold", "drop", "flip", "retro"] as const;
 
 export type IconShape = (typeof ICON_SHAPES)[number];
 export type BannerStyle = (typeof BANNER_STYLES)[number];
@@ -38,9 +40,11 @@ export interface ThemeSettings {
   decorativeElements: Decoration;
   entranceStyle: EntranceStyle;
   shineEnabled: boolean;
+  /** Full animations even when Steam's Reduce Motion is on. A preference, so presets never set it. */
+  ignoreReducedMotion: boolean;
 }
 
-type PresetValues = Omit<ThemeSettings, "preset">;
+type PresetValues = Omit<ThemeSettings, "preset" | "ignoreReducedMotion">;
 
 const BASE: PresetValues = {
   primaryColor: "#107C10",
@@ -62,7 +66,33 @@ const BASE: PresetValues = {
   shineEnabled: true,
 };
 
-// Keep in sync with DEFAULT_SETTINGS in main.py (which mirrors the xbox preset).
+const SKY_DAY: PresetValues = {
+  ...BASE,
+  primaryColor: "#5EA6D6",
+  secondaryColor: "#3D7EAE",
+  accentColor: "#ECCA2F",
+  textColor: "#FFF8E7",
+  descColor: "#FFF8E7",
+  glowIntensity: 15,
+  borderRadius: 14,
+  decorativeElements: "sky-day",
+  entranceStyle: "drop",
+};
+
+const SKY_NIGHT: PresetValues = {
+  ...BASE,
+  primaryColor: "#2A2D3E",
+  secondaryColor: "#1D1F2C",
+  accentColor: "#C4C9D1",
+  textColor: "#E8EBF2",
+  descColor: "#E8EBF2",
+  glowIntensity: 15,
+  borderRadius: 14,
+  decorativeElements: "sky-night",
+  entranceStyle: "fade",
+};
+
+// Keep in sync with DEFAULT_SETTINGS in main.py (the xbox preset plus user preferences).
 export const PRESETS: Record<Exclude<PresetName, "custom">, PresetValues> = {
   xbox: BASE,
   playstation: {
@@ -123,33 +153,13 @@ export const PRESETS: Record<Exclude<PresetName, "custom">, PresetValues> = {
     borderRadius: 14,
     entranceStyle: "bounce",
   },
-  "sky-day": {
-    ...BASE,
-    primaryColor: "#5EA6D6",
-    secondaryColor: "#3D7EAE",
-    accentColor: "#ECCA2F",
-    textColor: "#FFF8E7",
-    descColor: "#FFF8E7",
-    glowIntensity: 15,
-    borderRadius: 14,
-    decorativeElements: "sky-day",
-    entranceStyle: "drop",
-  },
-  "sky-night": {
-    ...BASE,
-    primaryColor: "#2A2D3E",
-    secondaryColor: "#1D1F2C",
-    accentColor: "#C4C9D1",
-    textColor: "#E8EBF2",
-    descColor: "#E8EBF2",
-    glowIntensity: 15,
-    borderRadius: 14,
-    decorativeElements: "sky-night",
-    entranceStyle: "fade",
-  },
+  "sky-day": SKY_DAY,
+  "sky-night": SKY_NIGHT,
+  "pixel-day": { ...SKY_DAY, borderRadius: 4, decorativeElements: "pixel-day", entranceStyle: "retro" },
+  "pixel-night": { ...SKY_NIGHT, borderRadius: 4, decorativeElements: "pixel-night", entranceStyle: "retro" },
 };
 
-export const DEFAULT_SETTINGS: ThemeSettings = { preset: "xbox", ...PRESETS.xbox };
+export const DEFAULT_SETTINGS: ThemeSettings = { preset: "xbox", ignoreReducedMotion: false, ...PRESETS.xbox };
 
 export const PRESET_OPTIONS = [
   { data: "xbox", label: "Xbox" },
@@ -160,6 +170,8 @@ export const PRESET_OPTIONS = [
   { data: "midnight", label: "Midnight" },
   { data: "sky-day", label: "Sky Day" },
   { data: "sky-night", label: "Sky Night" },
+  { data: "pixel-day", label: "Pixel Day" },
+  { data: "pixel-night", label: "Pixel Night" },
   { data: "custom", label: "Custom" },
 ];
 
@@ -189,6 +201,8 @@ export const ENTRANCE_OPTIONS = [
   { data: "pop", label: "Pop" },
   { data: "bounce", label: "Bounce" },
   { data: "fade", label: "Fade" },
+  { data: "flip", label: "Flip" },
+  { data: "retro", label: "Retro (16-bit)" },
 ];
 
 export const DECORATION_OPTIONS = [
@@ -196,6 +210,8 @@ export const DECORATION_OPTIONS = [
   { data: "sparkles", label: "Sparkles" },
   { data: "sky-day", label: "Sky Day" },
   { data: "sky-night", label: "Sky Night" },
+  { data: "pixel-day", label: "Pixel Day (16-bit)" },
+  { data: "pixel-night", label: "Pixel Night (16-bit)" },
 ];
 
 const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -251,6 +267,7 @@ export function sanitizeSettings(raw: Partial<Record<keyof ThemeSettings, unknow
     decorativeElements: safeChoice(r.decorativeElements, DECORATIONS, d.decorativeElements),
     entranceStyle: safeChoice(r.entranceStyle, ENTRANCE_STYLES, d.entranceStyle),
     shineEnabled: safeBool(r.shineEnabled, d.shineEnabled),
+    ignoreReducedMotion: safeBool(r.ignoreReducedMotion, d.ignoreReducedMotion),
   };
 }
 

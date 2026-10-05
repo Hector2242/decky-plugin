@@ -7,7 +7,8 @@ import decky
 
 SETTINGS_FILE = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
 
-# Mirrors the xbox preset in src/settings.ts; keep the two in sync.
+# Mirrors DEFAULT_SETTINGS in src/settings.ts (the xbox preset plus user preferences such as
+# ignoreReducedMotion); keep the two in sync.
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "preset": "xbox",
     "primaryColor": "#107C10",
@@ -27,6 +28,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "decorativeElements": "none",
     "entranceStyle": "unfold",
     "shineEnabled": True,
+    "ignoreReducedMotion": False,
 }
 
 
