@@ -1,25 +1,22 @@
 import type { Decoration } from "./settings";
 import type { MotionParts } from "./motion";
 
-const DAY_BANDS = ["#3b86d1", "#4c97dc", "#63aae6", "#84c1ef"];
-const NIGHT_BANDS = ["#0f1030", "#161a45", "#1e2458", "#28306b"];
-
-// Four 20px bands, like a 16-bit sky gradient.
-function bands(c: string[]): string {
-  return `linear-gradient(180deg, ${c[0]} 0 20px, ${c[1]} 20px 40px, ${c[2]} 40px 60px, ${c[3]} 60px)`;
-}
+// Skies follow the Primary/Secondary colors. The pixel ones are four 20px bands like a 16-bit gradient,
+// from --ac-px-b0 (Secondary) at the top to --ac-px-b3 (Primary); PIXEL_BASE defines the band variables.
+const SMOOTH_SKY = "linear-gradient(160deg, var(--ac-primary) 0%, var(--ac-secondary) 100%)";
+const BANDS =
+  "linear-gradient(180deg, var(--ac-px-b0) 0 20px, var(--ac-px-b1) 20px 40px, var(--ac-px-b2) 40px 60px, var(--ac-px-b3) 60px)";
 
 /** Card background for decorations that paint their own sky, otherwise null. */
 export function skyBackground(d: Decoration): string | null {
   switch (d) {
     case "sky-day":
-      return "linear-gradient(160deg, #5EA6D6 0%, #3D7EAE 100%)";
     case "sky-night":
-      return "linear-gradient(160deg, #2A2D3E 0%, #1D1F2C 100%)";
+      return SMOOTH_SKY;
     case "pixel-day":
-      return bands(DAY_BANDS);
     case "pixel-night":
-      return bands(NIGHT_BANDS);
+    case "pixel-sakura":
+      return BANDS;
     default:
       return null;
   }
@@ -187,6 +184,111 @@ const TWINKLES: [number, number, number, number][] = [
   [150, 36, 3.4, -1.7], [196, 14, 2.9, -0.8], [264, 56, 4.2, -3.1],
 ];
 
+// Seeded (mulberry32) so every toast draws exactly the same branches and petals.
+function seeded(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Blossom-covered branches bursting in from the left edge over about half the card (art px):
+// brown limbs first, then layered five-petal flowers clustered along them.
+const LIMBS: [number, number, number, number, number][] = [
+  // x0, y0, x1, y1, thickness
+  [-1, 4, 16, 8, 4], [16, 8, 30, 7, 3], [30, 7, 46, 10, 2], [46, 10, 60, 8, 2], [60, 8, 70, 10, 1],
+  [16, 8, 26, 15, 2], [26, 15, 38, 20, 1],
+  [-1, 27, 12, 23, 4], [12, 23, 26, 26, 3], [26, 26, 40, 31, 2], [40, 31, 52, 30, 1],
+  [12, 23, 20, 16, 1],
+  [-1, 38, 10, 35, 2], [10, 35, 22, 38, 1],
+];
+const CLUSTERS: [number, number, number, number][] = [
+  // x, y, radius, flowers
+  [4, 2, 6, 15], [12, 4, 6, 18], [20, 4, 6, 18], [28, 3, 6, 15], [36, 6, 6, 15], [44, 7, 6, 15],
+  [52, 6, 6, 14], [60, 6, 5, 12], [68, 8, 5, 10], [70, 3, 4, 7], [62, 14, 5, 10], [56, 14, 4, 7],
+  [22, 12, 5, 12], [30, 16, 5, 11], [38, 19, 5, 10], [66, 20, 4, 6],
+  [4, 24, 6, 15], [10, 19, 5, 12], [18, 22, 6, 15], [26, 24, 5, 12], [34, 28, 5, 11], [44, 29, 5, 11],
+  [52, 28, 5, 9], [58, 22, 4, 7], [20, 15, 4, 9], [4, 35, 5, 11], [14, 34, 4, 9],
+];
+const BARK = ["#8a5a44", "#7a4a3a", "#5a3428"]; // lit top, middle, shaded underside
+const BLOSSOM = { soft: "#ffc3d7", light: "#ffd6e5", mid: "#ff9ec0", deep: "#f37ea6", heart: "#e0457b" };
+
+function drawBranches(): { branches: string; glintA: string; glintB: string } {
+  const rand = seeded(29);
+  const art = new Map<string, string>();
+  const put = (x: number, y: number, color: string): void => {
+    if (x >= 0 && y >= 0 && y <= 42) art.set(`${x},${y}`, color);
+  };
+  // A soft blossom mass behind the branches, so each cluster reads as full bloom.
+  for (const [cx, cy, r] of CLUSTERS) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + 2 * dy * dy <= r * r && rand() < 0.6) put(cx + dx, cy + dy, rand() < 0.5 ? BLOSSOM.soft : BLOSSOM.mid);
+      }
+    }
+  }
+  for (const [x0, y0, x1, y1, w] of LIMBS) {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / steps);
+      const y = Math.round(y0 + ((y1 - y0) * i) / steps - w / 2);
+      for (let k = 0; k < w; k++) put(x, y + k, w === 1 ? BARK[1] : BARK[k === 0 ? 0 : k === w - 1 ? 2 : 1]);
+    }
+  }
+  const hearts: [number, number][] = [];
+  for (const [cx, cy, r, n] of CLUSTERS) {
+    for (let i = 0; i < n; i++) {
+      const x = cx + Math.round((rand() * 2 - 1) * r);
+      const y = cy + Math.round((rand() * 2 - 1) * r * 0.7);
+      const petal = rand() < 0.3 ? BLOSSOM.deep : BLOSSOM.mid;
+      put(x, y - 1, BLOSSOM.light);
+      put(x - 1, y, BLOSSOM.light);
+      put(x + 1, y, petal);
+      put(x, y + 1, petal);
+      if (rand() < 0.6) {
+        put(x - 1, y - 1, BLOSSOM.light);
+        put(x + 1, y + 1, petal);
+        put(x + 1, y - 1, BLOSSOM.mid);
+        put(x - 1, y + 1, BLOSSOM.mid);
+      }
+      put(x, y, BLOSSOM.heart);
+      hearts.push([x, y]);
+    }
+  }
+  // Two sets of glints on the flowers take turns.
+  const glints = (offset: number): string =>
+    hearts
+      .filter((_, i) => i % 9 === offset)
+      .slice(0, 6)
+      .map(([x, y]) => pixel(x, y - 1, "#fff4f8"))
+      .join(", ");
+  const branches = [...art].map(([key, color]) => {
+    const [x, y] = key.split(",").map(Number);
+    return pixel(x, y, color);
+  });
+  return { branches: branches.join(", "), glintA: glints(0), glintB: glints(4) };
+}
+const SAKURA = drawBranches();
+
+// A falling petal flutters between two frames, in a deep and a pale pink.
+const PETAL_FRAMES = [["PP.", ".PD"], [".P", "PP", "D."]];
+const PETAL_SPRITES = [
+  { P: "#ff8fb3", D: "#e0457b" },
+  { P: "#ffc2d6", D: "#ff8fb3" },
+].map((palette) => PETAL_FRAMES.map((rows) => rowsSprite(rows, palette).join(", ")));
+// Petals drop from the branches: left px, top px, fall cycle s, phase s.
+const PETALS: [number, number, number, number][] = (() => {
+  const rand = seeded(7);
+  return Array.from({ length: 24 }, (): [number, number, number, number] => {
+    const cycle = Math.round((5.5 + rand() * 4) * 10) / 10;
+    return [Math.round(rand() * 60) * 2, Math.round(rand() * 18) * 2 - 4, cycle, -Math.round(rand() * cycle * 10) / 10];
+  });
+})();
+
 export function SkyLayer({ variant }: { variant: Decoration }) {
   if (variant === "sparkles") {
     return (
@@ -270,6 +372,24 @@ export function SkyLayer({ variant }: { variant: Decoration }) {
       </div>
     );
   }
+  if (variant === "pixel-sakura") {
+    return (
+      <div className="ac-sky ac-px-sky">
+        <span className="ac-px-dither ac-px-d1" />
+        <span className="ac-px-dither ac-px-d2" />
+        <span className="ac-px-dither ac-px-d3" />
+        <span className="ac-px-spr ac-px-branches" />
+        <span className="ac-px-spr ac-px-shimmer-a" />
+        <span className="ac-px-spr ac-px-shimmer-b" />
+        {PETALS.map((_, i) => (
+          <span key={i} className={`ac-px-petal ac-px-petal-${i + 1}`}>
+            <span className={`ac-px-spr ac-px-flutter-${i % 2 ? "c" : "a"}`} />
+            <span className={`ac-px-spr ac-px-flutter-${i % 2 ? "d" : "b"}`} />
+          </span>
+        ))}
+      </div>
+    );
+  }
   return null;
 }
 
@@ -283,6 +403,9 @@ const NIGHT_TEXT = ".ac-title, .ac-desc { text-shadow: 0 0 8px rgb(20 22 35 / 0.
 // A hard 1px outline keeps text readable over white pixel clouds.
 const PIXEL_DAY_TEXT =
   ".ac-title, .ac-desc { text-shadow: 1px 0 0 #2b5f8f, -1px 0 0 #2b5f8f, 0 1px 0 #2b5f8f, 0 -1px 0 #2b5f8f, 0 1px 3px rgb(25 60 90 / 0.6); }";
+// Dark text over pink blossoms keeps a soft white halo.
+const SAKURA_TEXT =
+  ".ac-title, .ac-desc, .ac-eyebrow { text-shadow: 0 0 2px #fff, 0 0 4px rgb(255 243 247 / 0.95), 0 1px 0 rgb(255 255 255 / 0.8); }";
 const DRIFT_KEYFRAMES = "@keyframes ac-drift-left { to { transform: translateX(-50%); } }";
 const SKY_BASE = `
   .ac-sky { position: absolute; inset: 0; overflow: hidden; border-radius: calc(var(--ac-radius) - 2px); pointer-events: none; z-index: 0; }
@@ -292,6 +415,7 @@ const SKY_BASE = `
   .ac-compact .ac-sun, .ac-compact .ac-moon { top: 18px; }
   @keyframes ac-glow { from { opacity: 0.35; } to { opacity: 1; } }`;
 const PIXEL_BASE = `
+  .ac-toast { --ac-px-b0: var(--ac-secondary); --ac-px-b1: color-mix(in srgb, var(--ac-primary) 33%, var(--ac-secondary)); --ac-px-b2: color-mix(in srgb, var(--ac-primary) 67%, var(--ac-secondary)); --ac-px-b3: var(--ac-primary); }
   .ac-px-sky span { position: absolute; display: block; }
   .ac-px-dither { left: 0; right: 0; height: 4px; }
   .ac-px-spr { width: 0; height: 0; }
@@ -300,11 +424,9 @@ const PIXEL_BASE = `
   @keyframes ac-px-drift { to { translate: -292px 0; } }`;
 
 // 2px checkerboard strips over each band edge.
-function dither(c: string[]): string {
-  return [0, 1, 2]
-    .map((i) => `.ac-px-sky .ac-px-d${i + 1} { top: ${18 + i * 20}px; background: repeating-conic-gradient(${c[i]} 0 25%, ${c[i + 1]} 0 50%) 0 0 / 4px 4px; }`)
-    .join("\n");
-}
+const DITHER = [0, 1, 2]
+  .map((i) => `.ac-px-sky .ac-px-d${i + 1} { top: ${18 + i * 20}px; background: repeating-conic-gradient(var(--ac-px-b${i}) 0 25%, var(--ac-px-b${i + 1}) 0 50%) 0 0 / 4px 4px; }`)
+  .join("\n");
 
 function sparklesCSS(): MotionParts {
   const each = SPARKLES.map(
@@ -348,7 +470,8 @@ function skyNightCSS(): MotionParts {
   ).join("\n");
   return {
     always: `${SKY_BASE}
-      .ac-moon { position: absolute; top: 26px; right: 11px; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 76% 41%, #2A2D3E 44%, transparent 45%), radial-gradient(circle, #C4C9D1 100%, transparent 100%); box-shadow: inset 1px 1px 2px rgb(254 255 239 / 0.5); animation: ac-moon 5s ease-in-out infinite; }
+      .ac-moon { position: absolute; top: 26px; right: 11px; width: 26px; height: 26px; animation: ac-moon 5s ease-in-out infinite; }
+      .ac-moon::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #C4C9D1; box-shadow: inset 1px 1px 2px rgb(254 255 239 / 0.5); -webkit-mask: radial-gradient(circle at 76% 41%, transparent 44%, #000 45%); mask: radial-gradient(circle at 76% 41%, transparent 44%, #000 45%); }
       @keyframes ac-moon { 50% { filter: drop-shadow(0 0 5px rgb(255 255 255 / 0.45)); } }
       .ac-star { position: absolute; background: #fff; border-radius: 50%; box-shadow: 0 0 4px rgb(255 255 255 / 0.85); }
       ${stars}
@@ -365,7 +488,7 @@ function skyNightCSS(): MotionParts {
 function pixelDayCSS(): MotionParts {
   return {
     always: `${SKY_BASE}${PIXEL_BASE}
-      ${dither(DAY_BANDS)}
+      ${DITHER}
       .ac-px-clouds-back { left: 0; bottom: 24px; box-shadow: ${BACK_CLOUDS}; }
       .ac-px-clouds-front { left: 0; bottom: 16px; box-shadow: ${FRONT_CLOUDS}; }
       .ac-px-birds { left: 100%; top: 14px; }
@@ -390,7 +513,7 @@ function pixelNightCSS(): MotionParts {
   ).join("\n");
   return {
     always: `${SKY_BASE}${PIXEL_BASE}
-      ${dither(NIGHT_BANDS)}
+      ${DITHER}
       .ac-px-far, .ac-px-blink { left: 0; top: 0; }
       .ac-px-far { box-shadow: ${FAR_STARS}; }
       .ac-px-blink { box-shadow: ${BLINK_STARS}; animation: ac-px-blink 2.8s steps(1, end) infinite; }
@@ -417,6 +540,37 @@ function pixelNightCSS(): MotionParts {
   };
 }
 
+function pixelSakuraCSS(): MotionParts {
+  const petals = PETALS.map(
+    ([x, y, t, d], i) => `.ac-sky .ac-px-petal-${i + 1} { left: ${x}px; top: ${y}px; --ac-pt-t: ${t}s; --ac-pt-d: ${d}s; }`,
+  ).join("\n");
+  const [[deepA, deepB], [paleA, paleB]] = PETAL_SPRITES;
+  return {
+    always: `${SKY_BASE}${PIXEL_BASE}
+      ${DITHER}
+      .ac-px-branches, .ac-px-shimmer-a, .ac-px-shimmer-b { left: 0; top: 0; }
+      .ac-px-branches { box-shadow: ${SAKURA.branches}; }
+      .ac-px-shimmer-a { box-shadow: ${SAKURA.glintA}; animation: ac-px-flap 1.4s steps(1, end) infinite; }
+      .ac-px-shimmer-b { box-shadow: ${SAKURA.glintB}; animation: ac-px-flap 1.4s steps(1, end) -0.7s infinite; }
+      .ac-px-petal { opacity: 0; }
+      .ac-px-flutter-a { box-shadow: ${deepA}; animation: ac-px-flap 0.6s steps(1, end) infinite; }
+      .ac-px-flutter-b { box-shadow: ${deepB}; animation: ac-px-flap 0.6s steps(1, end) -0.3s infinite; }
+      .ac-px-flutter-c { box-shadow: ${paleA}; animation: ac-px-flap 0.6s steps(1, end) infinite; }
+      .ac-px-flutter-d { box-shadow: ${paleB}; animation: ac-px-flap 0.6s steps(1, end) -0.3s infinite; }
+      ${petals}
+      ${SAKURA_TEXT}`,
+    // Petals let go of the branches and drift down and right, +4px/+2px per step on the pixel grid.
+    full: `.ac-px-petal { animation: ac-px-fall var(--ac-pt-t) steps(40, end) var(--ac-pt-d) infinite; }
+      @keyframes ac-px-fall {
+        0% { translate: 0 0; opacity: 0; }
+        6% { opacity: 1; }
+        85% { opacity: 1; }
+        100% { translate: 160px 80px; opacity: 0; }
+      }`,
+    reduced: "",
+  };
+}
+
 export function skyCSS(d: Decoration): MotionParts {
   switch (d) {
     case "sparkles":
@@ -429,6 +583,8 @@ export function skyCSS(d: Decoration): MotionParts {
       return pixelDayCSS();
     case "pixel-night":
       return pixelNightCSS();
+    case "pixel-sakura":
+      return pixelSakuraCSS();
     default:
       return NO_SKY;
   }

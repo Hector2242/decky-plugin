@@ -1,5 +1,5 @@
 import { Router, achievementClasses } from "@decky/ui";
-import { ThemeSettings, hexToRgbTriplet, sanitizeSettings } from "./settings";
+import { ThemeSettings, hexToRgbTriplet, isLightColor, relativeLuminance, sanitizeSettings } from "./settings";
 import { buildToastWindowCSS } from "./steam";
 
 const CSS_CLASS_RE = /^[A-Za-z0-9_-]+$/;
@@ -35,6 +35,10 @@ export function buildAchievementPageCSS(raw: ThemeSettings): string {
       margin-bottom: 8px !important;
       transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
     }
+    ${isLightColor(s.primaryColor) ? `
+    ${row} { color: ${s.textColor} !important; }
+    ${row} * { color: inherit !important; }` : relativeLuminance(s.primaryColor) > 0.4 ? `
+    ${row} { text-shadow: 0 1px 2px rgb(0 0 0 / 0.55) !important; }` : ""}
     ${row}:hover, ${row}.gpfocus {
       border-color: ${s.accentColor} !important;
       box-shadow: 0 0 15px rgb(${accent} / 0.4) !important;

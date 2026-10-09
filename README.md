@@ -14,13 +14,15 @@ in the Quick Access menu is the one that shows up in game.
   the icon), Slide, Pop, Bounce, Fade, Flip and Retro (a 16-bit text box). Every entrance has its
   own matching exit, and slides come from whichever screen edge Steam places toasts on.
 - **Presets** — Xbox, PlayStation, Steam, Nintendo, Gold, Midnight, Sky Day, Sky Night, Pixel Day,
-  Pixel Night, each with its own colors, shape and entrance.
+  Pixel Night, Cherry Blossom, each with its own colors, shape and entrance.
 - **Rarity** — the global unlock percentage is shown on every toast; unlocks under 10% get a gold
   ring and glow, under 1% a diamond one. Under 25% is called out as uncommon.
 - **Progress toasts** — partial achievement progress shows an animated bar instead of a description.
 - **Decorations** — Sparkles, a drifting daytime sky with sun and clouds, a night sky with
   twinkling stars, constellations and a crescent moon, or 16-bit pixel-art versions of both
-  (Pixel Day with drifting clouds and birds, Pixel Night with sparkling stars and a shooting star).
+  (Pixel Day with drifting clouds and birds, Pixel Night with sparkling stars and a shooting star),
+  or a 16-bit Cherry Blossom: blossom-covered branches bursting in from the left with petals falling past. The skies are painted
+  from your Primary and Secondary colors, so changing them recolors the scene.
 - **Full control** — primary, secondary, accent, title and description colors; gradient, solid or
   glass banner; icon shape and border; corner rounding; glow intensity; shine sweep; duration.
 - **Live preview and real test toasts** — the preview replays your changes as you make them, and the

@@ -22,6 +22,8 @@ import {
   TOAST_SHAPE_OPTIONS,
   ThemeSettings,
   getCurrentSettings,
+  hexToHsl,
+  hslToHex,
   sanitizeSettings,
   setCurrentSettings,
 } from "./settings";
@@ -81,52 +83,8 @@ const PREVIEW: ToastAchievement = {
   description: "Preview of your theme",
 };
 
-function hexToHSL(hex: string): { h: number; s: number; l: number } {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  let h = 0;
-  let s = 0;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-    else if (max === g) h = ((b - r) / d + 2) / 6;
-    else h = ((r - g) / d + 4) / 6;
-  }
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-}
-
-function hslStringToHex(hsl: string): string | null {
-  const match = hsl.match(/hsl\((\d+),\s*(\d+)%?,\s*(\d+)%?\)/);
-  if (!match) return null;
-  const h = parseInt(match[1], 10) / 360;
-  const s = parseInt(match[2], 10) / 100;
-  const l = parseInt(match[3], 10) / 100;
-  const hue = (p: number, q: number, t: number): number => {
-    if (t < 0) t += 1;
-    if (t > 1) t -= 1;
-    if (t < 1 / 6) return p + (q - p) * 6 * t;
-    if (t < 1 / 2) return q;
-    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-    return p;
-  };
-  let rgb: [number, number, number];
-  if (s === 0) {
-    rgb = [l, l, l];
-  } else {
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    rgb = [hue(p, q, h + 1 / 3), hue(p, q, h), hue(p, q, h - 1 / 3)];
-  }
-  return `#${rgb.map((c) => Math.round(c * 255).toString(16).padStart(2, "0")).join("")}`;
-}
-
 function ColorButton({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
-  const hsl = hexToHSL(color);
+  const hsl = hexToHsl(color);
   return (
     <ButtonItem
       layout="below"
@@ -138,8 +96,9 @@ function ColorButton({ color, label, onChange }: { color: string; label: string;
             defaultS={hsl.s}
             defaultL={hsl.l}
             onConfirm={(value) => {
-              const hex = hslStringToHex(value);
-              if (hex) onChange(hex);
+              const hex = hslToHex(value);
+              // Untouched sliders return the rounded start color; keep the exact one and the preset.
+              if (hex && hex !== hslToHex(`hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`)) onChange(hex);
             }}
             closeModal={() => {}}
           />,

@@ -9,11 +9,12 @@ export type PresetName =
   | "sky-night"
   | "pixel-day"
   | "pixel-night"
+  | "pixel-sakura"
   | "custom";
 
 export const ICON_SHAPES = ["circle", "rounded", "square"] as const;
 export const BANNER_STYLES = ["gradient", "solid", "glass"] as const;
-export const DECORATIONS = ["none", "sparkles", "sky-day", "sky-night", "pixel-day", "pixel-night"] as const;
+export const DECORATIONS = ["none", "sparkles", "sky-day", "sky-night", "pixel-day", "pixel-night", "pixel-sakura"] as const;
 export const ENTRANCE_STYLES = ["pop", "slide", "fade", "bounce", "unfold", "drop", "flip", "retro"] as const;
 
 export type IconShape = (typeof ICON_SHAPES)[number];
@@ -155,8 +156,35 @@ export const PRESETS: Record<Exclude<PresetName, "custom">, PresetValues> = {
   },
   "sky-day": SKY_DAY,
   "sky-night": SKY_NIGHT,
-  "pixel-day": { ...SKY_DAY, borderRadius: 4, decorativeElements: "pixel-day", entranceStyle: "retro" },
-  "pixel-night": { ...SKY_NIGHT, borderRadius: 4, decorativeElements: "pixel-night", entranceStyle: "retro" },
+  // The pixel skies are four bands from Secondary (top) to Primary (bottom), so these are the band ends.
+  "pixel-day": {
+    ...SKY_DAY,
+    primaryColor: "#84c1ef",
+    secondaryColor: "#3b86d1",
+    borderRadius: 4,
+    decorativeElements: "pixel-day",
+    entranceStyle: "retro",
+  },
+  "pixel-night": {
+    ...SKY_NIGHT,
+    primaryColor: "#28306b",
+    secondaryColor: "#0f1030",
+    borderRadius: 4,
+    decorativeElements: "pixel-night",
+    entranceStyle: "retro",
+  },
+  "pixel-sakura": {
+    ...BASE,
+    primaryColor: "#fff3f7",
+    secondaryColor: "#ffd6e4",
+    accentColor: "#e0457b",
+    textColor: "#5c1a3e",
+    descColor: "#7d2f58",
+    glowIntensity: 15,
+    borderRadius: 4,
+    decorativeElements: "pixel-sakura",
+    entranceStyle: "retro",
+  },
 };
 
 export const DEFAULT_SETTINGS: ThemeSettings = { preset: "xbox", ignoreReducedMotion: false, ...PRESETS.xbox };
@@ -172,6 +200,7 @@ export const PRESET_OPTIONS = [
   { data: "sky-night", label: "Sky Night" },
   { data: "pixel-day", label: "Pixel Day" },
   { data: "pixel-night", label: "Pixel Night" },
+  { data: "pixel-sakura", label: "Cherry Blossom" },
   { data: "custom", label: "Custom" },
 ];
 
@@ -212,6 +241,7 @@ export const DECORATION_OPTIONS = [
   { data: "sky-night", label: "Sky Night" },
   { data: "pixel-day", label: "Pixel Day (16-bit)" },
   { data: "pixel-night", label: "Pixel Night (16-bit)" },
+  { data: "pixel-sakura", label: "Cherry Blossom (16-bit)" },
 ];
 
 const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -275,6 +305,63 @@ export function sanitizeSettings(raw: Partial<Record<keyof ThemeSettings, unknow
 export function hexToRgbTriplet(hex: string): string {
   const n = parseInt(hex.slice(1), 16);
   return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
+}
+
+// "#rrggbb" -> whole degrees and percents, the color picker's starting point.
+export function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0;
+  let s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+// Decky's ColorPickerModal confirms with `hsla(H, S%, L%, A)`, and its sliders can hold decimals.
+const HSL_RE = /^hsla?\(\s*(-?[\d.]+)(?:deg)?\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?\s*(?:,\s*[\d.]+%?\s*)?\)$/i;
+
+/** "hsl(...)" or "hsla(...)" (alpha ignored) -> lowercase "#rrggbb", or null when unparseable. */
+export function hslToHex(value: string): string | null {
+  const m = HSL_RE.exec(value.trim());
+  if (!m) return null;
+  const hue = parseFloat(m[1]);
+  const sat = parseFloat(m[2]);
+  const lig = parseFloat(m[3]);
+  if (![hue, sat, lig].every(Number.isFinite)) return null;
+  const h = ((hue % 360) + 360) % 360;
+  const s = Math.min(100, Math.max(0, sat)) / 100;
+  const l = Math.min(100, Math.max(0, lig)) / 100;
+  const channel = (n: number): string => {
+    const k = (n + h / 30) % 12;
+    const c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(c * 255).toString(16).padStart(2, "0");
+  };
+  return `#${channel(0)}${channel(8)}${channel(4)}`;
+}
+
+/** WCAG relative luminance of "#rrggbb": 0 for black, 1 for white. */
+export function relativeLuminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const linear = (c: number): number => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear((n >> 16) & 255) + 0.7152 * linear((n >> 8) & 255) + 0.0722 * linear(n & 255);
+}
+
+/** Relative luminance above 0.55: text laid over this color has to be dark. */
+export function isLightColor(hex: string): boolean {
+  return relativeLuminance(hex) > 0.55;
 }
 
 let current: ThemeSettings = DEFAULT_SETTINGS;
