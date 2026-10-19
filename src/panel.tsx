@@ -1,3 +1,9 @@
+/**
+ * @fileoverview The Quick Access panel: preview, test toasts and theme
+ * settings.
+ */
+
+import {callable} from '@decky/api';
 import {
   ButtonItem,
   ColorPickerModal,
@@ -7,10 +13,13 @@ import {
   SliderField,
   ToggleField,
   showModal,
-} from "@decky/ui";
-import { callable } from "@decky/api";
-import { useEffect, useState } from "react";
+} from '@decky/ui';
+import {useEffect, useState} from 'react';
+
+import {ensureMainWindowCss} from './main_window';
 import {
+  type PresetName,
+  type ThemeSettings,
   BANNER_STYLE_OPTIONS,
   DECORATION_OPTIONS,
   DEFAULT_SETTINGS,
@@ -18,101 +27,130 @@ import {
   ICON_SHAPE_OPTIONS,
   PRESETS,
   PRESET_OPTIONS,
-  PresetName,
   TOAST_SHAPE_OPTIONS,
-  ThemeSettings,
   getCurrentSettings,
   hexToHsl,
   hslToHex,
   sanitizeSettings,
   setCurrentSettings,
-} from "./settings";
-import { AchievementToast, ToastAchievement } from "./toast";
-import { fireTestAchievement } from "./steam";
-import { ensureMainWindowCSS } from "./mainWindow";
+} from './settings';
+import {fireTestAchievement} from './steam';
+import {type ToastAchievement, AchievementToast} from './toast';
 
-const getSettings = callable<[], Partial<ThemeSettings>>("get_settings");
-const saveSettings = callable<[settings: ThemeSettings], boolean>("save_settings");
+const getSettings = callable<[], Partial<ThemeSettings>>('get_settings');
+const saveSettings = callable<[settings: ThemeSettings], boolean>(
+  'save_settings',
+);
 
 const SAMPLE_IMAGE =
-  "https://shared.steamstatic.com/community_assets/images/apps/22380/ee1e9636c2b7d5add9123ef556c80fdd87ba1669.jpg";
+  'https://shared.steamstatic.com/community_assets/images/apps/22380/ee1e9636c2b7d5add9123ef556c80fdd87ba1669.jpg';
 
-const SAMPLES: Record<"unlock" | "rare" | "ultra" | "progress", ToastAchievement> = {
+type SampleName = 'unlock' | 'rare' | 'ultra' | 'progress';
+
+const SAMPLES: Record<SampleName, ToastAchievement> = {
   unlock: {
-    appid: 0,
-    id: "sample_unlock",
-    name: "Master of the Entirely Unnecessary Grind",
-    description: "Unlock every collectible across all nine regions without fast travel",
+    appId: 0,
+    id: 'sample_unlock',
+    name: 'Master of the Entirely Unnecessary Grind',
+    description:
+      'Unlock every collectible across all nine regions without fast travel',
     image: SAMPLE_IMAGE,
     achieved: true,
-    globalPct: 42.5,
+    globalPercent: 42.5,
   },
   rare: {
-    appid: 0,
-    id: "sample_rare",
-    name: "Sharpshooter",
-    description: "Land 50 consecutive headshots without missing a single shot",
+    appId: 0,
+    id: 'sample_rare',
+    name: 'Sharpshooter',
+    description: 'Land 50 consecutive headshots without missing a single shot',
     image: SAMPLE_IMAGE,
     achieved: true,
-    globalPct: 4.2,
+    globalPercent: 4.2,
   },
   ultra: {
-    appid: 0,
-    id: "sample_ultra",
-    name: "Diamond Hands",
-    description: "Finish the campaign on Nightmare without dying once",
+    appId: 0,
+    id: 'sample_ultra',
+    name: 'Diamond Hands',
+    description: 'Finish the campaign on Nightmare without dying once',
     image: SAMPLE_IMAGE,
     achieved: true,
-    globalPct: 0.6,
+    globalPercent: 0.6,
   },
   progress: {
-    appid: 0,
-    id: "sample_progress",
-    name: "Collector",
-    description: "Collect 10,000 gold",
+    appId: 0,
+    id: 'sample_progress',
+    name: 'Collector',
+    description: 'Collect 10,000 gold',
     image: SAMPLE_IMAGE,
     achieved: false,
-    globalPct: 18,
-    progress: { min: 0, current: 3456, max: 10000 },
+    globalPercent: 18,
+    progress: {min: 0, current: 3456, max: 10000},
   },
 };
 
 const PREVIEW: ToastAchievement = {
   ...SAMPLES.unlock,
-  name: "Achievement Unlocked",
-  description: "Preview of your theme",
+  name: 'Achievement Unlocked',
+  description: 'Preview of your theme',
 };
 
-function ColorButton({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
+interface TestButton {
+  sample: SampleName;
+  label: string;
+  description: string;
+}
+
+const TEST_BUTTONS: TestButton[] = [
+  {
+    sample: 'unlock',
+    label: 'Achievement',
+    description: 'Long title and description to check truncation',
+  },
+  {sample: 'rare', label: 'Rare', description: 'Under 10% of players'},
+  {sample: 'ultra', label: 'Ultra Rare', description: 'Under 1% of players'},
+  {
+    sample: 'progress',
+    label: 'Progress',
+    description: 'Partial progress toward an achievement',
+  },
+];
+
+interface ColorButtonProps {
+  color: string;
+  label: string;
+  onChange: (color: string) => void;
+}
+
+function ColorButton({color, label, onChange}: ColorButtonProps) {
   const hsl = hexToHsl(color);
+  const openPicker = () => {
+    showModal(
+      <ColorPickerModal
+        title={label}
+        defaultH={hsl.h}
+        defaultS={hsl.s}
+        defaultL={hsl.l}
+        onConfirm={(value) => {
+          const hex = hslToHex(value);
+          // Untouched sliders return the rounded start color; keep the exact
+          // one and the preset.
+          const start = hslToHex(`hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`);
+          if (hex && hex !== start) onChange(hex);
+        }}
+        closeModal={() => {}}
+      />,
+    );
+  };
   return (
-    <ButtonItem
-      layout="below"
-      onClick={() =>
-        showModal(
-          <ColorPickerModal
-            title={label}
-            defaultH={hsl.h}
-            defaultS={hsl.s}
-            defaultL={hsl.l}
-            onConfirm={(value) => {
-              const hex = hslToHex(value);
-              // Untouched sliders return the rounded start color; keep the exact one and the preset.
-              if (hex && hex !== hslToHex(`hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`)) onChange(hex);
-            }}
-            closeModal={() => {}}
-          />,
-        )
-      }
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+    <ButtonItem layout="below" onClick={openPicker}>
+      <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
         <div
           style={{
-            width: "24px",
-            height: "24px",
-            borderRadius: "4px",
+            width: '24px',
+            height: '24px',
+            borderRadius: '4px',
             backgroundColor: color,
-            border: "1px solid rgba(255,255,255,0.3)",
+            border: '1px solid rgba(255,255,255,0.3)',
             flexShrink: 0,
           }}
         />
@@ -122,41 +160,44 @@ function ColorButton({ color, label, onChange }: { color: string; label: string;
   );
 }
 
-const TEST_BUTTONS: { key: keyof typeof SAMPLES; label: string; description: string }[] = [
-  { key: "unlock", label: "Achievement", description: "Long title and description to check truncation" },
-  { key: "rare", label: "Rare", description: "Under 10% of players" },
-  { key: "ultra", label: "Ultra Rare", description: "Under 1% of players" },
-  { key: "progress", label: "Progress", description: "Partial progress toward an achievement" },
-];
-
+/** The plugin's Quick Access panel. */
 export function Panel() {
   const [settings, setSettings] = useState<ThemeSettings>(getCurrentSettings());
   const [loaded, setLoaded] = useState(false);
-  // Steam's Reduce Motion setting reaches every CEF window as prefers-reduced-motion.
-  const [steamReducesMotion] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // Steam's Reduce Motion setting reaches every CEF window as
+  // prefers-reduced-motion.
+  const [steamReducesMotion] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
 
   useEffect(() => {
     getSettings()
-      .then((s) => {
-        const clean = sanitizeSettings(s);
+      .then((stored) => {
+        const clean = sanitizeSettings(stored);
         setSettings(clean);
         setCurrentSettings(clean);
-        ensureMainWindowCSS(clean);
+        ensureMainWindowCss(clean);
       })
-      .catch((error) => console.error("[AchievementCustomizer] Failed to load settings", error))
-      .finally(() => setLoaded(true));
+      .catch((error: unknown) => {
+        console.error('[AchievementCustomizer] Failed to load settings', error);
+      })
+      .finally(() => {
+        setLoaded(true);
+      });
   }, []);
 
   const update = (partial: Partial<ThemeSettings>) => {
-    const next = sanitizeSettings({ ...settings, ...partial });
+    const next = sanitizeSettings({...settings, ...partial});
     setSettings(next);
     setCurrentSettings(next);
-    saveSettings(next).catch((error) => console.error("[AchievementCustomizer] Failed to save settings", error));
-    ensureMainWindowCSS(next);
+    saveSettings(next).catch((error: unknown) => {
+      console.error('[AchievementCustomizer] Failed to save settings', error);
+    });
+    ensureMainWindowCss(next);
   };
 
   const applyPreset = (preset: PresetName) => {
-    update(preset === "custom" ? { preset } : { preset, ...PRESETS[preset] });
+    update(preset === 'custom' ? {preset} : {preset, ...PRESETS[preset]});
   };
 
   if (!loaded) return null;
@@ -165,23 +206,35 @@ export function Panel() {
     <>
       <PanelSection title="Preview">
         <PanelSectionRow>
-          {/* Keyed on the settings so every change replays the entrance. */}
-          <AchievementToast key={JSON.stringify(settings)} achievement={PREVIEW} settings={settings} mode="preview" />
+          <AchievementToast
+            // Keyed on the settings so every change replays the entrance.
+            key={JSON.stringify(settings)}
+            achievement={PREVIEW}
+            settings={settings}
+            mode="preview"
+          />
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Test Toasts">
-        {TEST_BUTTONS.map((t) => (
-          <PanelSectionRow key={t.key}>
-            <ButtonItem layout="below" description={t.description} onClick={() => fireTestAchievement(SAMPLES[t.key])}>
-              {t.label}
+        {TEST_BUTTONS.map((button) => (
+          <PanelSectionRow key={button.sample}>
+            <ButtonItem
+              layout="below"
+              description={button.description}
+              onClick={() => {
+                fireTestAchievement(SAMPLES[button.sample]);
+              }}
+            >
+              {button.label}
             </ButtonItem>
           </PanelSectionRow>
         ))}
         <PanelSectionRow>
-          <div style={{ fontSize: "12px", opacity: 0.7, padding: "4px 0" }}>
-            Test toasts go through Steam's own notification system. If nothing shows up, check Steam Settings ›
-            Notifications › Achievement Unlocked.
+          <div style={{fontSize: '12px', opacity: 0.7, padding: '4px 0'}}>
+            Test toasts go through Steam's own notification system. If nothing
+            shows up, check Steam Settings › Notifications › Achievement
+            Unlocked.
           </div>
         </PanelSectionRow>
       </PanelSection>
@@ -192,26 +245,58 @@ export function Panel() {
             label="Preset"
             rgOptions={PRESET_OPTIONS}
             selectedOption={settings.preset}
-            onChange={(opt) => applyPreset(opt.data)}
+            onChange={(option) => {
+              applyPreset(option.data);
+            }}
           />
         </PanelSectionRow>
       </PanelSection>
 
       <PanelSection title="Colors">
         <PanelSectionRow>
-          <ColorButton color={settings.primaryColor} label="Primary" onChange={(c) => update({ primaryColor: c, preset: "custom" })} />
+          <ColorButton
+            color={settings.primaryColor}
+            label="Primary"
+            onChange={(color) => {
+              update({primaryColor: color, preset: 'custom'});
+            }}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ColorButton color={settings.secondaryColor} label="Secondary" onChange={(c) => update({ secondaryColor: c, preset: "custom" })} />
+          <ColorButton
+            color={settings.secondaryColor}
+            label="Secondary"
+            onChange={(color) => {
+              update({secondaryColor: color, preset: 'custom'});
+            }}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ColorButton color={settings.accentColor} label="Accent / Glow" onChange={(c) => update({ accentColor: c, preset: "custom" })} />
+          <ColorButton
+            color={settings.accentColor}
+            label="Accent / Glow"
+            onChange={(color) => {
+              update({accentColor: color, preset: 'custom'});
+            }}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ColorButton color={settings.textColor} label="Title Text" onChange={(c) => update({ textColor: c, preset: "custom" })} />
+          <ColorButton
+            color={settings.textColor}
+            label="Title Text"
+            onChange={(color) => {
+              update({textColor: color, preset: 'custom'});
+            }}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ColorButton color={settings.descColor} label="Description Text" onChange={(c) => update({ descColor: c, preset: "custom" })} />
+          <ColorButton
+            color={settings.descColor}
+            label="Description Text"
+            onChange={(color) => {
+              update({descColor: color, preset: 'custom'});
+            }}
+          />
         </PanelSectionRow>
       </PanelSection>
 
@@ -221,7 +306,9 @@ export function Panel() {
             label="Banner Style"
             rgOptions={BANNER_STYLE_OPTIONS}
             selectedOption={settings.bannerStyle}
-            onChange={(opt) => update({ bannerStyle: opt.data })}
+            onChange={(option) => {
+              update({bannerStyle: option.data});
+            }}
           />
         </PanelSectionRow>
         <PanelSectionRow>
@@ -229,18 +316,32 @@ export function Panel() {
             label="Icon Shape"
             rgOptions={ICON_SHAPE_OPTIONS}
             selectedOption={settings.iconShape}
-            onChange={(opt) => update({ iconShape: opt.data })}
+            onChange={(option) => {
+              update({iconShape: option.data});
+            }}
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ToggleField label="Icon Border" checked={settings.iconBorder} onChange={(v) => update({ iconBorder: v })} />
+          <ToggleField
+            label="Icon Border"
+            checked={settings.iconBorder}
+            onChange={(checked) => {
+              update({iconBorder: checked});
+            }}
+          />
         </PanelSectionRow>
         <PanelSectionRow>
           <DropdownItem
             label="Toast Shape"
             rgOptions={TOAST_SHAPE_OPTIONS}
-            selectedOption={TOAST_SHAPE_OPTIONS.find((o) => o.data === settings.borderRadius)?.data ?? 8}
-            onChange={(opt) => update({ borderRadius: opt.data })}
+            selectedOption={
+              TOAST_SHAPE_OPTIONS.find(
+                (option) => option.data === settings.borderRadius,
+              )?.data ?? 8
+            }
+            onChange={(option) => {
+              update({borderRadius: option.data});
+            }}
           />
         </PanelSectionRow>
         <PanelSectionRow>
@@ -249,7 +350,9 @@ export function Panel() {
             description="Animated overlay behind the toast text"
             rgOptions={DECORATION_OPTIONS}
             selectedOption={settings.decorativeElements}
-            onChange={(opt) => update({ decorativeElements: opt.data })}
+            onChange={(option) => {
+              update({decorativeElements: option.data});
+            }}
           />
         </PanelSectionRow>
       </PanelSection>
@@ -261,7 +364,9 @@ export function Panel() {
               label="Animate anyway"
               description="Steam's Reduce Motion is on, so toasts use simple fades. Turn this on for full animations."
               checked={settings.ignoreReducedMotion}
-              onChange={(v) => update({ ignoreReducedMotion: v })}
+              onChange={(checked) => {
+                update({ignoreReducedMotion: checked});
+              }}
             />
           </PanelSectionRow>
         )}
@@ -270,7 +375,9 @@ export function Panel() {
             label="Entrance Animation"
             description="Animate the toast as it appears"
             checked={settings.popupAnimation}
-            onChange={(v) => update({ popupAnimation: v })}
+            onChange={(checked) => {
+              update({popupAnimation: checked});
+            }}
           />
         </PanelSectionRow>
         {settings.popupAnimation && (
@@ -279,7 +386,9 @@ export function Panel() {
               label="Entrance Style"
               rgOptions={ENTRANCE_OPTIONS}
               selectedOption={settings.entranceStyle}
-              onChange={(opt) => update({ entranceStyle: opt.data })}
+              onChange={(option) => {
+                update({entranceStyle: option.data});
+              }}
             />
           </PanelSectionRow>
         )}
@@ -288,11 +397,19 @@ export function Panel() {
             label="Shine Sweep"
             description="Light sweeps across the toast on arrival"
             checked={settings.shineEnabled}
-            onChange={(v) => update({ shineEnabled: v })}
+            onChange={(checked) => {
+              update({shineEnabled: checked});
+            }}
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <ToggleField label="Glow Effect" checked={settings.glowEnabled} onChange={(v) => update({ glowEnabled: v })} />
+          <ToggleField
+            label="Glow Effect"
+            checked={settings.glowEnabled}
+            onChange={(checked) => {
+              update({glowEnabled: checked});
+            }}
+          />
         </PanelSectionRow>
         {settings.glowEnabled && (
           <PanelSectionRow>
@@ -302,7 +419,9 @@ export function Panel() {
               min={5}
               max={50}
               step={5}
-              onChange={(v) => update({ glowIntensity: v })}
+              onChange={(value) => {
+                update({glowIntensity: value});
+              }}
               showValue
             />
           </PanelSectionRow>
@@ -312,7 +431,9 @@ export function Panel() {
             label="Rarity Effects"
             description="Gold for rare, diamond for ultra rare unlocks"
             checked={settings.rarityEffects}
-            onChange={(v) => update({ rarityEffects: v })}
+            onChange={(checked) => {
+              update({rarityEffects: checked});
+            }}
           />
         </PanelSectionRow>
       </PanelSection>
@@ -325,7 +446,9 @@ export function Panel() {
             min={3}
             max={15}
             step={1}
-            onChange={(v) => update({ duration: v * 1000 })}
+            onChange={(seconds) => {
+              update({duration: seconds * 1000});
+            }}
             showValue
             valueSuffix="s"
           />
@@ -334,7 +457,12 @@ export function Panel() {
 
       <PanelSection title="Reset">
         <PanelSectionRow>
-          <ButtonItem layout="below" onClick={() => update(DEFAULT_SETTINGS)}>
+          <ButtonItem
+            layout="below"
+            onClick={() => {
+              update(DEFAULT_SETTINGS);
+            }}
+          >
             Reset to Default
           </ButtonItem>
         </PanelSectionRow>
