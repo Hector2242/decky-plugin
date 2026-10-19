@@ -76,8 +76,9 @@ class Plugin:
         decky.logger.info("Achievement Customizer unloaded")
 
     async def _uninstall(self):
-        if os.path.exists(SETTINGS_FILE):
-            os.remove(SETTINGS_FILE)
+        # Decky also runs this when an update replaces the plugin, so the settings
+        # file stays put; otherwise every store update would reset the user's theme.
+        decky.logger.info("Achievement Customizer uninstalled, settings kept")
 
     async def _migration(self):
         # The plugin used to be called "Xbox Achievements". Copy (never move) the old

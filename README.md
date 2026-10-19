@@ -62,8 +62,51 @@ Decky Loader is on version 3.3.0 or newer, since older versions can't show any p
 
 ## Installation
 
-The plugin hasn't been reviewed or approved by the Decky plugin team yet, so it isn't in the plugin
-store. For now it's still in development.
+The plugin hasn't been reviewed by the Decky plugin team yet, so it isn't in the plugin store. Until
+it is, you can install it yourself in a couple of minutes, right from Game Mode. You'll need
+[Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) installed first.
+
+### Turn on Developer mode
+
+Open the Quick Access menu, go to the Decky tab and tap the gear icon. Under **General**, switch on
+**Developer mode**. A new **Developer** page shows up in the same settings menu, and that's where
+both install options live.
+
+### Install from a URL
+
+This is the quickest way, since there's nothing to download yourself.
+
+1. In Decky's settings, open **Developer**.
+2. Under **Install Plugin from URL**, enter this address:
+
+   ```
+   https://github.com/Hector2242/decky-plugin/releases/latest/download/achievement-customizer.zip
+   ```
+
+3. Tap **Install**, then tap **Install** again when Decky asks you to confirm.
+
+### Install from a ZIP file
+
+1. Download `achievement-customizer.zip` from the
+   [latest release](https://github.com/Hector2242/decky-plugin/releases/latest). If you grab it on
+   another computer, copy it over to your Deck first (the Downloads folder is a good spot).
+2. In Decky's settings, open **Developer** and tap **Browse** next to **Install Plugin from ZIP
+   File**.
+3. Pick the zip, then tap **Install** when Decky asks you to confirm.
+
+Either way, Achievement Customizer shows up in your Decky plugin list a few seconds later, ready to
+go.
+
+### Updating
+
+When a new version comes out, install it the same way you installed the first one. If you used the
+URL, that's the very same address again, since it always points at the newest release. Decky swaps
+the old version out for the new one and your colors and theme stay just the way you left them, so
+there's no need to uninstall anything first.
+
+Decky doesn't announce updates for plugins installed this way. If you'd like to hear about new
+versions, click **Watch** on the [GitHub repo](https://github.com/Hector2242/decky-plugin) and choose
+**Custom → Releases**.
 
 ## License
 
