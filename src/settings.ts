@@ -10,11 +10,21 @@ export type PresetName =
   | "pixel-day"
   | "pixel-night"
   | "pixel-sakura"
+  | "pixel-halloween"
   | "custom";
 
 export const ICON_SHAPES = ["circle", "rounded", "square"] as const;
 export const BANNER_STYLES = ["gradient", "solid", "glass"] as const;
-export const DECORATIONS = ["none", "sparkles", "sky-day", "sky-night", "pixel-day", "pixel-night", "pixel-sakura"] as const;
+export const DECORATIONS = [
+  "none",
+  "sparkles",
+  "sky-day",
+  "sky-night",
+  "pixel-day",
+  "pixel-night",
+  "pixel-sakura",
+  "pixel-halloween",
+] as const;
 export const ENTRANCE_STYLES = ["pop", "slide", "fade", "bounce", "unfold", "drop", "flip", "retro"] as const;
 
 export type IconShape = (typeof ICON_SHAPES)[number];
@@ -185,6 +195,19 @@ export const PRESETS: Record<Exclude<PresetName, "custom">, PresetValues> = {
     decorativeElements: "pixel-sakura",
     entranceStyle: "retro",
   },
+  // The graveyard sky is a vignette: Primary around the moon, Secondary toward the edges.
+  "pixel-halloween": {
+    ...BASE,
+    primaryColor: "#2E2A55",
+    secondaryColor: "#15121F",
+    accentColor: "#B8A5E6",
+    textColor: "#F4F2FF",
+    descColor: "#C9C4DD",
+    glowIntensity: 18,
+    borderRadius: 4,
+    decorativeElements: "pixel-halloween",
+    entranceStyle: "retro",
+  },
 };
 
 export const DEFAULT_SETTINGS: ThemeSettings = { preset: "xbox", ignoreReducedMotion: false, ...PRESETS.xbox };
@@ -201,6 +224,7 @@ export const PRESET_OPTIONS = [
   { data: "pixel-day", label: "Pixel Day" },
   { data: "pixel-night", label: "Pixel Night" },
   { data: "pixel-sakura", label: "Cherry Blossom" },
+  { data: "pixel-halloween", label: "Halloween" },
   { data: "custom", label: "Custom" },
 ];
 
@@ -242,6 +266,7 @@ export const DECORATION_OPTIONS = [
   { data: "pixel-day", label: "Pixel Day (16-bit)" },
   { data: "pixel-night", label: "Pixel Night (16-bit)" },
   { data: "pixel-sakura", label: "Cherry Blossom (16-bit)" },
+  { data: "pixel-halloween", label: "Halloween (16-bit)" },
 ];
 
 const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;

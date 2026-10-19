@@ -1,7 +1,7 @@
 import { CSSProperties, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ThemeSettings, hexToRgbTriplet, sanitizeSettings } from "./settings";
 import { MotionParts, motionCSS } from "./motion";
-import { SkyLayer, hasSkyBackground, skyBackground, skyCSS } from "./sky";
+import { DecorationLayer, hasDecorationBackground, decorationBackground, decorationCSS } from "./decorations";
 
 export interface ToastAchievement {
   appid: number;
@@ -82,8 +82,8 @@ const PULSE: Record<RarityTier, string | null> = {
 };
 
 function backgroundCSS(s: ThemeSettings): string {
-  const sky = skyBackground(s.decorativeElements);
-  if (sky) return `background: ${sky};`;
+  const scene = decorationBackground(s.decorativeElements);
+  if (scene) return `background: ${scene};`;
   if (s.bannerStyle === "solid") return "background: var(--ac-primary);";
   if (s.bannerStyle === "glass") {
     return "background: rgb(var(--ac-primary-rgb) / 0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);";
@@ -132,8 +132,9 @@ function baseCSS(s: ThemeSettings, tier: RarityTier): MotionParts {
   const intenseShine = tier === "rare" || tier === "ultra";
 
   return {
+    // round() keeps an odd-height card on whole pixels so pixel art stays sharp; older clients drop it and keep -50%.
     always: `
-    .ac-toast { --ac-dx: 1; position: absolute !important; left: -6px; right: 14px; top: 50%; translate: 0 -50%; margin: 0; font-family: "Motiva Sans", "Segoe UI", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    .ac-toast { --ac-dx: 1; position: absolute !important; left: -6px; right: 14px; top: 50%; translate: 0 -50%; translate: 0 round(-50%, 1px); margin: 0; font-family: "Motiva Sans", "Segoe UI", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
     .ac-toast[data-edge~="left"] { --ac-dx: -1; }
     .ac-toast[data-edge~="ingame"] { top: auto; bottom: 58px; translate: none; }
     .ac-toast[data-edge~="ingame"][data-edge~="top"] { top: 38px; bottom: auto; }
@@ -150,7 +151,7 @@ function baseCSS(s: ThemeSettings, tier: RarityTier): MotionParts {
     .ac-ring { position: absolute; inset: -4px; border-radius: calc(var(--ac-icon-radius) + 4px); padding: 2px; opacity: 0; pointer-events: none; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }
 
     .ac-text { position: relative; z-index: 1; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .ac-sky-space .ac-title, .ac-sky-space .ac-desc, .ac-sky-space .ac-progress { padding-right: 34px; }
+    .ac-decoration-space .ac-title, .ac-decoration-space .ac-desc, .ac-decoration-space .ac-progress { padding-right: 34px; }
     .ac-eyebrow { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 10px; line-height: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ac-accent); }
     .ac-eyebrow svg { flex: 0 0 auto; width: 12px; height: 12px; fill: currentColor; }
     .ac-eyebrow-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -179,7 +180,7 @@ export function buildToastCSS(s: ThemeSettings, tier: RarityTier): string {
     baseCSS(s, tier),
     motionCSS(s.popupAnimation ? s.entranceStyle : null, PULSE[tier]),
     rarityCSS(tier),
-    skyCSS(s.decorativeElements),
+    decorationCSS(s.decorativeElements),
   ];
   const join = (key: keyof MotionParts): string => parts.map((p) => p[key]).join("\n");
   if (s.ignoreReducedMotion) return `${join("always")}\n${join("full")}`;
@@ -237,7 +238,7 @@ export function AchievementToast({ achievement: a, settings: raw, mode, edgeOf, 
   if (mode === "preview") classes.push("ac-preview");
   if (compact) classes.push("ac-compact");
   if (tier !== "none") classes.push(`ac-${tier}`);
-  if (hasSkyBackground(s.decorativeElements)) classes.push("ac-sky-space");
+  if (hasDecorationBackground(s.decorativeElements)) classes.push("ac-decoration-space");
 
   const pill = a.globalPct > 0 ? <span className={`ac-pill${tier === "none" ? " ac-pct" : ""}`}>{formatPct(a.globalPct)}</span> : null;
 
@@ -245,7 +246,7 @@ export function AchievementToast({ achievement: a, settings: raw, mode, edgeOf, 
     <div ref={rootRef} className={classes.join(" ")} data-edge={edge} style={cssTokens(s)} onClick={onActivate}>
       <style>{css}</style>
       <div className={`ac-card${s.popupAnimation ? ` ac-in-${s.entranceStyle}` : ""}`}>
-        <SkyLayer variant={s.decorativeElements} />
+        <DecorationLayer variant={s.decorativeElements} />
         <div className="ac-icon">
           {a.image && !imageFailed ? (
             <img src={a.image} alt="" onError={() => setImageFailed(true)} />

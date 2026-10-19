@@ -47,11 +47,21 @@ export function springEasing(visualDuration: number, bounce: number): { easing: 
   return { easing: `linear(${points.join(", ")})`, ms: Math.round(settle * 1000) };
 }
 
+// Older Steam clients lack linear(): fall back to an ease-out of similar length. It never overshoots,
+// so Slide cannot run past the window edge.
+const LINEAR_EASING = typeof CSS === "undefined" || CSS.supports("animation-timing-function", "linear(0, 1)");
+
+function spring(visualDuration: number, bounce: number): { easing: string; ms: number } {
+  return LINEAR_EASING
+    ? springEasing(visualDuration, bounce)
+    : { easing: "cubic-bezier(0.22, 1, 0.36, 1)", ms: Math.round(visualDuration * 1300) };
+}
+
 const SPRING = {
-  slide: springEasing(0.45, 0.12),
-  drop: springEasing(0.5, 0.22),
-  pop: springEasing(0.35, 0.5),
-  flip: springEasing(0.5, 0.3),
+  slide: spring(0.45, 0.12),
+  drop: spring(0.5, 0.22),
+  pop: spring(0.35, 0.5),
+  flip: spring(0.5, 0.3),
 };
 
 const LIVE = ".ac-toast:not(.ac-preview)";
