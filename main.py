@@ -7,8 +7,8 @@ import decky
 
 SETTINGS_FILE = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
 
-# Mirrors DEFAULT_SETTINGS in src/settings.ts (the xbox preset plus user preferences such as
-# ignoreReducedMotion); keep the two in sync.
+# Mirrors DEFAULT_SETTINGS in src/settings.ts (the xbox preset plus the user preferences
+# duration and ignoreReducedMotion); keep the two in sync.
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "preset": "xbox",
     "primaryColor": "#107C10",
@@ -63,6 +63,13 @@ class Plugin:
         except (OSError, TypeError) as error:
             decky.logger.error(f"Failed to save settings: {error}")
             return False
+
+        # After a plugin reload the Quick Access panel can belong to an older copy of
+        # the frontend; this tells the copy that owns the toast hooks about the change.
+        try:
+            await decky.emit("settings_changed", merged)
+        except Exception as error:
+            decky.logger.error(f"Failed to announce settings change: {error}")
 
         return True
 

@@ -63,7 +63,6 @@ interface PresetValues {
   glowEnabled: boolean;
   glowIntensity: number;
   borderRadius: number;
-  duration: number;
   iconBorder: boolean;
   iconShape: IconShape;
   bannerStyle: BannerStyle;
@@ -77,6 +76,8 @@ interface PresetValues {
 /** Settings persisted by main.py; the keys must match its DEFAULT_SETTINGS. */
 export interface ThemeSettings extends PresetValues {
   preset: PresetName;
+  /** How long a toast stays on screen, in ms. A preference, so presets never set it. */
+  duration: number;
   /**
    * Full animations even when Steam's Reduce Motion is on. A preference, so
    * presets never set it.
@@ -96,7 +97,6 @@ const BASE: PresetValues = {
   glowEnabled: true,
   glowIntensity: 20,
   borderRadius: 12,
-  duration: 6000,
   iconBorder: true,
   iconShape: 'circle',
   bannerStyle: 'gradient',
@@ -155,7 +155,6 @@ export const PRESETS: Record<Exclude<PresetName, 'custom'>, PresetValues> = {
     glowEnabled: false,
     glowIntensity: 10,
     borderRadius: 4,
-    duration: 5000,
     iconBorder: false,
     iconShape: 'rounded',
     bannerStyle: 'solid',
@@ -180,7 +179,6 @@ export const PRESETS: Record<Exclude<PresetName, 'custom'>, PresetValues> = {
     descColor: '#daa520',
     glowIntensity: 25,
     borderRadius: 10,
-    duration: 7000,
     entranceStyle: 'pop',
   },
   'midnight': {
@@ -248,6 +246,7 @@ export const PRESETS: Record<Exclude<PresetName, 'custom'>, PresetValues> = {
  */
 export const DEFAULT_SETTINGS: ThemeSettings = {
   preset: 'xbox',
+  duration: 6000,
   ignoreReducedMotion: false,
   ...PRESETS.xbox,
 };
