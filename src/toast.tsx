@@ -481,19 +481,22 @@ export function AchievementToast({
       const horizontal = anchor.left ? 'left' : 'right';
       setEdge(`${vertical} ${horizontal}${anchor.inGame ? ' ingame' : ''}`);
     }
+    // Steam's toast window is 1x1 or 2x2 until first shown; a real one is at
+    // least 80px tall.
+    const minWindowHeight = 40;
     const measure = () => {
       const height = root.parentElement?.clientHeight ?? 0;
-      setCompact(height > 1 && height < 100);
+      setCompact(height >= minWindowHeight && height < 100);
     };
     measure();
     // The first toast after Steam starts can land in a window that is still
-    // 1x1 and has never painted: its animation clock reads 0 and then jumps to
-    // real time, so the exit would already be over. Start again once sized.
+    // unsized and has never painted: its animation clock reads 0 and then jumps
+    // to real time, so the exit would already be over. Start again once sized.
     const view = root.ownerDocument.defaultView;
     if (!view) return;
-    let restart = view.innerHeight <= 1;
+    let restart = view.innerHeight < minWindowHeight;
     const onResize = () => {
-      if (view.innerHeight <= 1) return;
+      if (view.innerHeight < minWindowHeight) return;
       measure();
       if (!restart) return;
       restart = false;
