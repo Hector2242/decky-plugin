@@ -50,6 +50,7 @@ interface NotificationStore {
 
 interface ToastNotification {
   notificationID?: number;
+  decky?: boolean;
   data?: unknown;
 }
 
@@ -142,7 +143,9 @@ function achievementFromProps(
   const group = props.group;
   const first = group?.notifications?.[0];
   if (!group || !first) return null;
-  if (group.decky) {
+  // Steam wraps popups in its own group, so Decky's flag sits on the
+  // notification there.
+  if (group.decky || first.decky) {
     // Decky toasts carry the ToastData they were created with.
     const data = first.data as MarkedToastData | undefined;
     return data?.achievementToast ?? null;
@@ -175,7 +178,7 @@ export function installToastRenderPatch(): () => void {
     if (!props || props.location !== POPUP_LOCATION) return callOriginal;
     const achievement = achievementFromProps(props);
     if (!achievement) return callOriginal;
-    ensureMainWindowCss();
+    ensureMainWindowCss(getCurrentSettings());
     // Keyed per notification so a follow-up toast remounts and replays its
     // entrance.
     return createElement(
@@ -301,12 +304,11 @@ interface ToastWindowClasses {
   positionLeft: string;
 }
 
-// Undefined until the first lookup; null when the module is unavailable.
-let cachedWindowClasses: ToastWindowClasses | null | undefined;
+// Cached once found; a failed lookup is retried on the next call.
+let cachedWindowClasses: ToastWindowClasses | undefined;
 
 function resolveToastWindowClasses(): ToastWindowClasses | null {
-  if (cachedWindowClasses !== undefined) return cachedWindowClasses;
-  cachedWindowClasses = null;
+  if (cachedWindowClasses) return cachedWindowClasses;
   try {
     const classModule =
       findClassModule(
@@ -335,7 +337,7 @@ function resolveToastWindowClasses(): ToastWindowClasses | null {
       error,
     );
   }
-  return cachedWindowClasses;
+  return cachedWindowClasses ?? null;
 }
 
 /**

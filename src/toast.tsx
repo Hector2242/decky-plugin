@@ -86,7 +86,12 @@ const UNLOCK_LABEL: Record<RarityTier, string> = {
 };
 
 function formatPercent(percent: number): string {
-  return `${percent < 10 ? percent.toFixed(1) : Math.round(percent)}%`;
+  if (percent < 0.1) return '<0.1%';
+  // Rounded down so the shown number never crosses its tier's limit; the
+  // epsilon absorbs float noise such as 2.2999999.
+  return percent < 10
+    ? `${(Math.floor(percent * 10 + 1e-6) / 10).toFixed(1)}%`
+    : `${Math.floor(percent + 1e-6)}%`;
 }
 
 function formatCount(count: number): string {
@@ -229,7 +234,8 @@ function baseCss(settings: ThemeSettings, tier: RarityTier): MotionParts {
         font-family: "Motiva Sans", "Segoe UI", Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
-      .ac-toast[data-edge~="left"] { --ac-dx: -1; }
+      /* Steam mirrors the popup on the left (left: 0; right: 20px). */
+      .ac-toast[data-edge~="left"] { --ac-dx: -1; left: 14px; right: -6px; }
       .ac-toast[data-edge~="ingame"] { top: auto; bottom: 58px; translate: none; }
       .ac-toast[data-edge~="ingame"][data-edge~="top"] { top: 38px; bottom: auto; }
       .ac-toast.ac-preview {
@@ -475,8 +481,31 @@ export function AchievementToast({
       const horizontal = anchor.left ? 'left' : 'right';
       setEdge(`${vertical} ${horizontal}${anchor.inGame ? ' ingame' : ''}`);
     }
-    const height = root.parentElement?.clientHeight ?? 0;
-    if (height > 0 && height < 100) setCompact(true);
+    const measure = () => {
+      const height = root.parentElement?.clientHeight ?? 0;
+      setCompact(height > 1 && height < 100);
+    };
+    measure();
+    // The first toast after Steam starts can land in a window that is still
+    // 1x1 and has never painted: its animation clock reads 0 and then jumps to
+    // real time, so the exit would already be over. Start again once sized.
+    const view = root.ownerDocument.defaultView;
+    if (!view) return;
+    let restart = view.innerHeight <= 1;
+    const onResize = () => {
+      if (view.innerHeight <= 1) return;
+      measure();
+      if (!restart) return;
+      restart = false;
+      for (const animation of root.getAnimations({subtree: true})) {
+        animation.cancel();
+        animation.play();
+      }
+    };
+    view.addEventListener('resize', onResize);
+    return () => {
+      view.removeEventListener('resize', onResize);
+    };
   }, [mode, edgeOf]);
 
   const tier = rarityTier(achievement.globalPercent, settings.rarityEffects);

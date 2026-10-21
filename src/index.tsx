@@ -40,6 +40,8 @@ export default definePlugin(() => {
     onSettingsChanged,
   );
 
+  // Set on unload; this copy's Quick Access panel can outlive it.
+  let unloaded = false;
   // The main window may not exist yet while Decky is still starting up.
   let retry: ReturnType<typeof setInterval> | undefined;
   const applyCss = () => {
@@ -56,6 +58,7 @@ export default definePlugin(() => {
       console.error('[AchievementCustomizer] Failed to load settings', error);
     })
     .finally(() => {
+      if (unloaded) return;
       if (!ensureMainWindowCss(getCurrentSettings())) {
         retry = setInterval(applyCss, CSS_RETRY_MS);
       }
@@ -64,11 +67,14 @@ export default definePlugin(() => {
   return {
     name: 'Achievement Customizer',
     titleView: (
-      <div className={staticClasses.Title}>Achievement Customizer</div>
+      // Older Decky builds leave staticClasses undefined on newer Steam.
+      <div className={staticClasses?.Title}>Achievement Customizer</div>
     ),
-    content: <Panel />,
+    content: <Panel isActive={() => !unloaded} />,
+    alwaysRender: true,
     icon: <PaletteIcon />,
     onDismount() {
+      unloaded = true;
       removeEventListener(SETTINGS_CHANGED, onSettingsChanged);
       if (retry) clearInterval(retry);
       unpatchRender();

@@ -3,11 +3,12 @@
  * settings.
  */
 
-import {callable} from '@decky/api';
+import {callable, useQuickAccessVisible} from '@decky/api';
 import {
   ButtonItem,
   ColorPickerModal,
   DropdownItem,
+  Focusable,
   PanelSection,
   PanelSectionRow,
   SliderField,
@@ -16,6 +17,7 @@ import {
 } from '@decky/ui';
 import {useEffect, useState} from 'react';
 
+import {hasDecorationBackground} from './decorations';
 import {ensureMainWindowCss} from './main_window';
 import {
   type PresetName,
@@ -160,21 +162,39 @@ function ColorButton({color, label, onChange}: ColorButtonProps) {
   );
 }
 
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+interface PanelProps {
+  /** False once Decky unloaded this copy; its panel can stay on screen. */
+  isActive: () => boolean;
+}
+
 /** The plugin's Quick Access panel. */
-export function Panel() {
+export function Panel({isActive}: PanelProps) {
   const [settings, setSettings] = useState<ThemeSettings>(getCurrentSettings());
   const [loaded, setLoaded] = useState(false);
   // Steam's Reduce Motion setting reaches every CEF window as
-  // prefers-reduced-motion.
-  const [steamReducesMotion] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  // prefers-reduced-motion. The panel stays mounted (alwaysRender), so it is
+  // read again each time Quick Access opens.
+  const visible = useQuickAccessVisible();
+  const [steamReducesMotion, setSteamReducesMotion] = useState(
+    () => window.matchMedia(REDUCED_MOTION).matches,
   );
+  // Counts openings so the preview replays its entrance each time.
+  const [opens, setOpens] = useState(0);
+  useEffect(() => {
+    if (visible) {
+      setSteamReducesMotion(window.matchMedia(REDUCED_MOTION).matches);
+      setOpens((count) => count + 1);
+    }
+  }, [visible]);
 
   useEffect(() => {
     getSettings()
       .then((stored) => {
         const clean = sanitizeSettings(stored);
         setSettings(clean);
+        if (!isActive()) return;
         setCurrentSettings(clean);
         ensureMainWindowCss(clean);
       })
@@ -189,10 +209,13 @@ export function Panel() {
   const update = (partial: Partial<ThemeSettings>) => {
     const next = sanitizeSettings({...settings, ...partial});
     setSettings(next);
-    setCurrentSettings(next);
     saveSettings(next).catch((error: unknown) => {
       console.error('[AchievementCustomizer] Failed to save settings', error);
     });
+    // An unloaded copy's CSS would never be removed; the backend's
+    // settings_changed broadcast reaches the loaded copy instead.
+    if (!isActive()) return;
+    setCurrentSettings(next);
     ensureMainWindowCss(next);
   };
 
@@ -202,17 +225,31 @@ export function Panel() {
 
   if (!loaded) return null;
 
+  // Presets use radii between the menu's steps; list the real one.
+  const shapeOptions = TOAST_SHAPE_OPTIONS.some(
+    (option) => option.data === settings.borderRadius,
+  )
+    ? TOAST_SHAPE_OPTIONS
+    : [
+        ...TOAST_SHAPE_OPTIONS,
+        {data: settings.borderRadius, label: `${settings.borderRadius}px`},
+      ];
+
   return (
     <>
       <PanelSection title="Preview">
         <PanelSectionRow>
-          <AchievementToast
-            // Keyed on the settings so every change replays the entrance.
-            key={JSON.stringify(settings)}
-            achievement={PREVIEW}
-            settings={settings}
-            mode="preview"
-          />
+          {/* A D-pad stop: the title bar above is sticky, so focusing it never
+              scrolls the preview back into view. */}
+          <Focusable onActivate={() => {}}>
+            <AchievementToast
+              // Keyed on the settings and openings so each replays the entrance.
+              key={`${opens}:${JSON.stringify(settings)}`}
+              achievement={PREVIEW}
+              settings={settings}
+              mode="preview"
+            />
+          </Focusable>
         </PanelSectionRow>
       </PanelSection>
 
@@ -304,6 +341,13 @@ export function Panel() {
         <PanelSectionRow>
           <DropdownItem
             label="Banner Style"
+            // Decorations that paint their own sky replace the toast banner;
+            // the achievements page still uses it.
+            description={
+              hasDecorationBackground(settings.decorativeElements)
+                ? 'Toast uses the decoration; still styles the achievements page'
+                : undefined
+            }
             rgOptions={BANNER_STYLE_OPTIONS}
             selectedOption={settings.bannerStyle}
             onChange={(option) => {
@@ -333,12 +377,8 @@ export function Panel() {
         <PanelSectionRow>
           <DropdownItem
             label="Toast Shape"
-            rgOptions={TOAST_SHAPE_OPTIONS}
-            selectedOption={
-              TOAST_SHAPE_OPTIONS.find(
-                (option) => option.data === settings.borderRadius,
-              )?.data ?? 8
-            }
+            rgOptions={shapeOptions}
+            selectedOption={settings.borderRadius}
             onChange={(option) => {
               update({borderRadius: option.data});
             }}

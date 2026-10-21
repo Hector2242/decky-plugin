@@ -80,7 +80,7 @@ function buildAchievementPageCss(rawSettings: ThemeSettings): string {
     ? `
       ${row}:has(${unlock}) {
         border-color: ${settings.accentColor} !important;
-        animation: achievement-customizer-glow 3s ease-in-out infinite !important;
+        box-shadow: 0 0 5px rgb(${accent} / 0.4);
       }
       @keyframes achievement-customizer-glow {
         0%, 100% { box-shadow: 0 0 5px rgb(${accent} / 0.4); }
@@ -96,18 +96,34 @@ function buildAchievementPageCss(rawSettings: ThemeSettings): string {
       border: 1px solid rgb(${accent} / 0.3) !important;
       border-radius: ${settings.borderRadius}px !important;
       margin-bottom: 8px !important;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
     }
     ${rowTextCss(row, settings)}
     ${row}:hover, ${row}.gpfocus {
       border-color: ${settings.accentColor} !important;
       box-shadow: 0 0 15px rgb(${accent} / 0.4) !important;
-      transform: scale(1.02) !important;
     }
     ${imageCss}
     ${labelCss}
     ${unlockedCss}
+    ${motionOnly(
+      `
+      ${row} {
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
+      }
+      ${row}:hover, ${row}.gpfocus { transform: scale(1.02) !important; }
+      ${unlock ? `${row}:has(${unlock}) { animation: achievement-customizer-glow 3s ease-in-out infinite !important; }` : ''}`,
+      settings,
+    )}
   `;
+}
+
+// Steam's Reduce Motion reaches the main window as prefers-reduced-motion, so
+// movement and the endless glow follow it like the toast does.
+function motionOnly(css: string, settings: ThemeSettings): string {
+  return settings.ignoreReducedMotion
+    ? css
+    : `@media (prefers-reduced-motion: no-preference) {${css}}`;
 }
 
 /**
