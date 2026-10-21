@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import shutil
@@ -32,6 +33,16 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 }
 
 
+def _is_json_safe(value: Any) -> bool:
+    # NaN and Infinity (also 1e999) load as floats, and Decky sends them to the
+    # frontend as bare NaN tokens its JSON parser rejects: that call never settles.
+    try:
+        json.dumps(value, allow_nan=False)
+    except (ValueError, RecursionError):
+        return False
+    return True
+
+
 class Plugin:
     async def get_settings(self) -> dict:
         if not os.path.exists(SETTINGS_FILE):
@@ -40,7 +51,8 @@ class Plugin:
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                 saved = json.load(f)
-        except (json.JSONDecodeError, OSError) as error:
+        # ValueError covers broken JSON and invalid UTF-8.
+        except (ValueError, RecursionError, OSError) as error:
             decky.logger.error(f"Failed to load settings, using defaults: {error}")
             return DEFAULT_SETTINGS.copy()
 
@@ -48,7 +60,10 @@ class Plugin:
             decky.logger.warning("Settings file did not contain an object, using defaults")
             return DEFAULT_SETTINGS.copy()
 
-        return {**DEFAULT_SETTINGS, **saved}
+        safe = {key: value for key, value in saved.items() if _is_json_safe(value)}
+        if len(safe) < len(saved):
+            decky.logger.warning("Ignoring settings with NaN or Infinity, using defaults for them")
+        return {**DEFAULT_SETTINGS, **safe}
 
     async def save_settings(self, settings: dict) -> bool:
         if not isinstance(settings, dict):
@@ -56,12 +71,17 @@ class Plugin:
             return False
 
         merged = {**DEFAULT_SETTINGS, **settings}
+        temp_file = f"{SETTINGS_FILE}.tmp"
         try:
             os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
-            with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-                json.dump(merged, f, indent=2)
-        except (OSError, TypeError) as error:
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(merged, f, indent=2, allow_nan=False)
+            # Swapped in whole, so a failed or interrupted write never truncates it.
+            os.replace(temp_file, SETTINGS_FILE)
+        except (OSError, TypeError, ValueError) as error:
             decky.logger.error(f"Failed to save settings: {error}")
+            with contextlib.suppress(OSError):
+                os.remove(temp_file)
             return False
 
         # After a plugin reload the Quick Access panel can belong to an older copy of
