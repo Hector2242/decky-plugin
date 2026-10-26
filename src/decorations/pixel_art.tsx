@@ -418,3 +418,36 @@ export function twinkleStars(
     css,
   };
 }
+
+/** Fireball colors: white-hot, yellow, orange, red, ember and smoke. */
+export const FIREBALL_COLORS = {
+  W: '#fff',
+  Y: '#ffe14d',
+  O: '#ff8c1a',
+  R: '#e5281e',
+  D: '#7a1a12',
+  S: '#5c5c5c',
+};
+
+/**
+ * Returns six 24x24 ASCII frames of a pixel explosion: a white flash swelling
+ * into flame, then smoke burning away to holes.
+ */
+export function fireballFrames(): string[][] {
+  return [0, 1, 2, 3, 4, 5].map((k) => {
+    const random = seeded(17 + k);
+    const radius = [3, 6, 9, 11, 11, 10][k];
+    const rings = ['WWY', 'WYO', 'YOR', 'ORD', 'RSS', 'SSS'][k];
+    const holes = [0, 0, 0.05, 0.15, 0.35, 0.55][k];
+    return [...Array(24).keys()].map((y) =>
+      [...Array(24).keys()]
+        .map((x) => {
+          const reach =
+            Math.hypot(x - 11.5, y - 11.5) / radius + (random() - 0.5) * 0.35;
+          if (reach > 1 || random() < holes) return '.';
+          return rings[Math.min(2, Math.floor(reach * 3))];
+        })
+        .join(''),
+    );
+  });
+}

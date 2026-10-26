@@ -1,5 +1,6 @@
 import contextlib
 import json
+import math
 import os
 import shutil
 from typing import Any, Dict
@@ -9,7 +10,8 @@ import decky
 SETTINGS_FILE = os.path.join(decky.DECKY_PLUGIN_SETTINGS_DIR, "settings.json")
 
 # Mirrors DEFAULT_SETTINGS in src/settings.ts (the xbox preset plus the user preferences
-# duration and ignoreReducedMotion); keep the two in sync.
+# duration, position, rarityEffects, trophyReveal and ignoreReducedMotion); keep the two
+# in sync.
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "preset": "xbox",
     "primaryColor": "#107C10",
@@ -25,22 +27,42 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "iconShape": "circle",
     "bannerStyle": "gradient",
     "rarityEffects": True,
+    "trophyReveal": "spin",
     "popupAnimation": True,
     "decorativeElements": "none",
     "entranceStyle": "unfold",
     "shineEnabled": True,
+    "position": "bottom-right",
     "ignoreReducedMotion": False,
 }
 
 
-def _is_json_safe(value: Any) -> bool:
-    # NaN and Infinity (also 1e999) load as floats, and Decky sends them to the
-    # frontend as bare NaN tokens its JSON parser rejects: that call never settles.
-    try:
-        json.dumps(value, allow_nan=False)
-    except (ValueError, RecursionError):
-        return False
-    return True
+# Longest text any setting holds: colors are 7 characters, choices a few words.
+MAX_TEXT = 64
+
+
+def _is_valid(key: str, value: Any) -> bool:
+    # Settings are flat: each value must have its default's type.
+    default = DEFAULT_SETTINGS[key]
+    if isinstance(default, bool):
+        return isinstance(value, bool)
+    if isinstance(default, (int, float)):
+        # NaN and Infinity (also 1e999) load as floats, and Decky sends them to the
+        # frontend as bare NaN tokens its JSON parser rejects: that call never settles.
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+        )
+    return isinstance(value, str) and len(value) <= MAX_TEXT
+
+
+def _known(settings: dict) -> dict:
+    return {
+        key: value
+        for key, value in settings.items()
+        if key in DEFAULT_SETTINGS and _is_valid(key, value)
+    }
 
 
 class Plugin:
@@ -60,17 +82,20 @@ class Plugin:
             decky.logger.warning("Settings file did not contain an object, using defaults")
             return DEFAULT_SETTINGS.copy()
 
-        safe = {key: value for key, value in saved.items() if _is_json_safe(value)}
-        if len(safe) < len(saved):
-            decky.logger.warning("Ignoring settings with NaN or Infinity, using defaults for them")
-        return {**DEFAULT_SETTINGS, **safe}
+        known = _known(saved)
+        if len(known) < len(saved):
+            decky.logger.warning("Ignoring unknown or invalid settings, using defaults for them")
+        return {**DEFAULT_SETTINGS, **known}
 
     async def save_settings(self, settings: dict) -> bool:
         if not isinstance(settings, dict):
             decky.logger.warning("Ignoring settings that are not an object")
             return False
 
-        merged = {**DEFAULT_SETTINGS, **settings}
+        known = _known(settings)
+        if len(known) < len(settings):
+            decky.logger.warning("Not saving unknown or invalid settings")
+        merged = {**DEFAULT_SETTINGS, **known}
         temp_file = f"{SETTINGS_FILE}.tmp"
         try:
             os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)

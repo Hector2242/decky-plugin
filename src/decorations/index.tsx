@@ -9,6 +9,7 @@ import type {JSX} from 'react';
 import type {MotionParts} from '../motion';
 import type {Decoration} from '../settings';
 import {halloween} from './halloween';
+import {hoth} from './hoth';
 import {DITHER, PIXEL_BASE} from './pixel_art';
 import {pixelDay} from './pixel_day';
 import {pixelNight} from './pixel_night';
@@ -39,6 +40,7 @@ const THEMES: Record<Decoration, Theme | null> = {
   'pixel-night': pixelNight,
   'pixel-sakura': sakura,
   'pixel-halloween': halloween,
+  'pixel-hoth': hoth,
 };
 
 /** Returns the card background of a decoration that paints its own scene. */

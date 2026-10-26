@@ -17,13 +17,15 @@ import {
   decorationCss,
   hasDecorationBackground,
 } from './decorations';
-import {type MotionParts, motionCss} from './motion';
+import {type MotionParts, motionCss, revealCss} from './motion';
 import {
   type IconShape,
   type ThemeSettings,
   hexToRgbTriplet,
+  isLightColor,
   sanitizeSettings,
 } from './settings';
+import {TrophyIcon} from './trophy_icon';
 
 /** What a toast shows, read from Steam's notification or a sample. */
 export interface ToastAchievement {
@@ -36,16 +38,19 @@ export interface ToastAchievement {
   /** Global unlock percentage, 0-100. Zero or negative means unknown. */
   globalPercent: number;
   progress?: {min: number; current: number; max: number};
+  /** This unlock was the game's last locked achievement. */
+  completesGame?: boolean;
 }
 
-/** The screen edges the toast popup is anchored to. */
+/** How Steam laid out the toast window around the chosen position. */
 export interface ToastEdge {
-  top: boolean;
-  left: boolean;
+  /** In game the window reaches past the screen edge. */
   inGame: boolean;
+  /** Steam's left-side popup (left: 0; right: 20px) instead of the right one. */
+  mirrored: boolean;
 }
 
-type RarityTier = 'none' | 'uncommon' | 'rare' | 'ultra';
+type RarityTier = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
 
 interface AchievementToastProps {
   achievement: ToastAchievement;
@@ -56,10 +61,10 @@ interface AchievementToastProps {
    */
   mode: 'live' | 'preview';
   /**
-   * Resolves which screen edges the toast popup is anchored to, so entrances
-   * come from the right side.
+   * Reads how Steam laid out the toast window, or null when its classes are
+   * unknown and the chosen position could not be applied. Live toasts only.
    */
-  edgeOf?: (root: HTMLElement) => ToastEdge;
+  edgeOf?: (root: HTMLElement) => ToastEdge | null;
   onActivate?: () => void;
 }
 
@@ -70,19 +75,38 @@ export const ICON_RADIUS: Record<IconShape, string> = {
   square: '0px',
 };
 
-function rarityTier(globalPercent: number, enabled: boolean): RarityTier {
-  if (!enabled || !(globalPercent > 0)) return 'none';
-  if (globalPercent < 1) return 'ultra';
-  if (globalPercent < 10) return 'rare';
-  if (globalPercent < 25) return 'uncommon';
-  return 'none';
+// PlayStation-like cutoffs on the share of players who have it.
+// Platinum is only for the unlock that completes the game (100%).
+function rarityTier(
+  achievement: ToastAchievement,
+  enabled: boolean,
+): RarityTier {
+  const {globalPercent} = achievement;
+  if (!enabled) return 'none';
+  if (achievement.achieved && achievement.completesGame) return 'platinum';
+  if (!(globalPercent > 0)) return 'none';
+  if (globalPercent < 15) return 'gold';
+  if (globalPercent < 50) return 'silver';
+  return 'bronze';
 }
 
 const UNLOCK_LABEL: Record<RarityTier, string> = {
   none: 'Achievement unlocked',
-  uncommon: 'Uncommon unlock',
-  rare: 'Rare achievement',
-  ultra: 'Ultra rare unlock',
+  bronze: 'Bronze trophy',
+  silver: 'Silver trophy',
+  gold: 'Gold trophy',
+  platinum: 'Platinum trophy',
+};
+
+// Light, base and dark tone of each tier's metal.
+const TIER_SHADES: Record<
+  Exclude<RarityTier, 'none'>,
+  [string, string, string]
+> = {
+  bronze: ['#f2b47a', '#cd7f32', '#7a4519'],
+  silver: ['#ffffff', '#c0c0c0', '#6f7680'],
+  gold: ['#fff4b0', '#ffd700', '#a87b00'],
+  platinum: ['#ffffff', '#e5e4e2', '#7c8ea6'],
 };
 
 function formatPercent(percent: number): string {
@@ -100,23 +124,30 @@ function formatCount(count: number): string {
   });
 }
 
+// Steam's achievement trophy: an eight-point badge with a round hole, its
+// ribbon tails and a base.
 const BADGE_PATH =
-  'M30 30.05H26L24 34.05L20.11 27.57L22.9 24.8701L26.9 24.81L30 30.05ZM13.1 24.8701L9.1 24.81L6 30.05H10L12 34.05L15.89 27.57L13.1 24.8701ZM22.5 13.05C22.5 12.16 22.2361 11.29 21.7416 10.55C21.2471 9.80996 20.5443 9.23318 19.7221 8.89259C18.8998 8.552 17.995 8.46288 17.1221 8.63651C16.2492 8.81015 15.4474 9.23873 14.818 9.86807C14.1887 10.4974 13.7601 11.2992 13.5865 12.1721C13.4128 13.0451 13.5019 13.9499 13.8425 14.7721C14.1831 15.5944 14.7599 16.2972 15.4999 16.7917C16.24 17.2861 17.11 17.55 18 17.55C18.5913 17.5514 19.1771 17.4359 19.7236 17.2102C20.2702 16.9845 20.7668 16.6531 21.1849 16.235C21.603 15.8168 21.9345 15.3202 22.1601 14.7737C22.3858 14.2271 22.5013 13.6414 22.5 13.05ZM29 13.05L25.85 16.3L25.78 20.83L21.25 20.9L18 24.05L14.75 20.9L10.22 20.83L10.15 16.3L7 13.05L10.15 9.80005L10.22 5.27005L14.75 5.20005L18 2.05005L21.25 5.20005L25.78 5.27005L25.85 9.80005L29 13.05Z';
+  'M21.5 6L26 10.5H32.5V17L37 21.5L32.5 26V32.5H26L21.5 37L17 32.5H10.5V26L6 21.5L10.5 17V10.5H17ZM28.5 21.5A7 7 0 1 0 14.5 21.5A7 7 0 1 0 28.5 21.5ZM12 38H16L19.5 48H15.5ZM27 38H31L27.5 48H23.5ZM12 51H31L33 54H10Z';
 
 function Badge() {
   return (
-    <svg viewBox="0 0 36 36" aria-hidden="true">
-      <path d={BADGE_PATH} />
+    <svg viewBox="6 6 31 48" aria-hidden="true">
+      <path d={BADGE_PATH} fillRule="evenodd" />
     </svg>
   );
 }
 
-const PULSE: Record<RarityTier, string | null> = {
-  none: null,
-  uncommon: null,
-  rare: 'ac-pulse-rare 2.5s ease-in-out 900ms infinite',
-  ultra: 'ac-pulse-ultra 2s ease-in-out 900ms infinite',
-};
+// Gold and platinum pulse a brighter glow over the card's own (from 900 ms):
+// fading a layer runs on the GPU, while animating box-shadow repaints the card
+// every frame.
+const PULSE_LAYER = `
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;`;
 
 function backgroundCss(settings: ThemeSettings): string {
   const scene = decorationBackground(settings.decorativeElements);
@@ -131,50 +162,126 @@ function backgroundCss(settings: ThemeSettings): string {
   return 'background: linear-gradient(135deg, var(--ac-primary), var(--ac-secondary));';
 }
 
-function rarityCss(tier: RarityTier): MotionParts {
-  if (tier === 'rare') {
+function rarityCss(tier: RarityTier, lightCard: boolean): MotionParts {
+  if (tier === 'none') return {always: '', full: '', reduced: ''};
+  const [light, color, dark] = TIER_SHADES[tier];
+  // The trophy covers the icon at rest; motion.ts reveals it.
+  const shared = `
+    .ac-toast {
+      --ac-tier: ${color};
+      --ac-tier-rgb: ${hexToRgbTriplet(color)};
+      --ac-tier-light: ${light};
+      --ac-tier-dark: ${dark};
+    }
+    .ac-toast .ac-pill { background: rgb(var(--ac-tier-rgb) / 0.18); }
+    .ac-toast .ac-pill, .ac-toast .ac-eyebrow {
+      color: var(${lightCard ? '--ac-tier-dark' : '--ac-tier'});
+    }
+    .ac-toast .ac-icon img, .ac-toast .ac-icon-fallback { border-color: var(--ac-tier); }
+    .ac-trophy {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border: 2px solid var(--ac-tier);
+      border-radius: inherit;
+      background: #15161a;
+      background: radial-gradient(
+        circle at 50% 15%,
+        color-mix(in srgb, var(--ac-tier) 55%, #000),
+        color-mix(in srgb, var(--ac-tier) 26%, #000) 55%,
+        color-mix(in srgb, var(--ac-tier) 10%, #000)
+      );
+    }
+    .ac-trophy svg { width: 70%; height: 70%; overflow: visible; }
+    .ac-t-base { fill: var(--ac-tier); }
+    .ac-t-light { fill: var(--ac-tier-light); }
+    .ac-t-dark { fill: var(--ac-tier-dark); }
+    .ac-t-shade { fill: var(--ac-tier-dark); opacity: 0.35; }
+    .ac-t-handle, .ac-t-shine { fill: none; stroke-linecap: round; }
+    .ac-t-handle { stroke: var(--ac-tier-dark); stroke-width: 4.5; }
+    .ac-t-shine { stroke: var(--ac-tier-light); stroke-width: 2.4; opacity: 0.85; }
+    .ac-t-star { stroke: var(--ac-tier-dark); stroke-width: 0.8; }
+    /* Each sparkle is its own layer over the cup, scaled about its centre. */
+    .ac-glint {
+      position: absolute;
+      width: 70%;
+      height: 70%;
+      fill: #fff;
+      transform-origin: 79.7% 10.9%;
+    }
+    .ac-trophy .ac-glint svg { width: 100%; height: 100%; }
+    .ac-glint-2 { transform-origin: 14.1% 31.3%; }
+    .ac-glint-3 { transform-origin: 85.9% 68.8%; }
+    .ac-glint-more { display: none; }`;
+  const glint = `
+    .ac-glint { animation: ac-glint 2.4s ease-in-out infinite; }
+    @keyframes ac-glint {
+      0%, 100% { opacity: 0.35; scale: 0.5; }
+      50% { opacity: 1; scale: 1; }
+    }`;
+  if (tier === 'gold') {
     return {
-      always: `
-        .ac-rare .ac-card { border-color: #FFD700; }
-        .ac-rare .ac-pill { background: rgb(255 215 0 / 0.18); color: #FFD700; }
-        .ac-rare .ac-ring {
+      always: `${shared}
+        .ac-gold .ac-ring {
           opacity: 1;
-          background: conic-gradient(from 0deg, transparent 0 55%, #FFD700 80%, transparent 100%);
+          --ac-ring-light: conic-gradient(from 0deg, transparent 0 55%, #FFD700 80%, transparent 100%);
         }
-        @keyframes ac-pulse-rare {
-          0%, 100% {
-            box-shadow: 0 0 14px rgb(255 215 0 / 0.5), 0 0 30px rgb(255 165 0 / 0.2), 0 6px 18px rgb(0 0 0 / 0.35);
-          }
-          50% {
-            box-shadow: 0 0 22px rgb(255 215 0 / 0.75), 0 0 48px rgb(255 165 0 / 0.4), 0 6px 18px rgb(0 0 0 / 0.35);
-          }
-        }`,
-      full: '.ac-rare .ac-ring { animation: ac-spin 2.6s linear infinite; }',
+        .ac-gold .ac-card {
+          box-shadow: 0 0 14px rgb(255 215 0 / 0.5), 0 0 30px rgb(255 165 0 / 0.2), 0 6px 18px rgb(0 0 0 / 0.35);
+        }
+        .ac-gold .ac-card::before {
+          ${PULSE_LAYER}
+          box-shadow: 0 0 22px rgb(255 215 0 / 0.75), 0 0 48px rgb(255 165 0 / 0.4);
+          animation: ac-pulse 2.5s ease-in-out 900ms infinite;
+        }
+        @keyframes ac-pulse { 50% { opacity: 1; } }`,
+      full: `${glint} .ac-gold .ac-ring::before { animation: ac-spin 2.6s linear infinite; }`,
       reduced: '',
     };
   }
-  if (tier === 'ultra') {
+  if (tier === 'platinum') {
     return {
-      always: `
-        .ac-ultra .ac-card { border-color: #E5E4E2; }
-        .ac-ultra .ac-pill { background: rgb(229 228 226 / 0.22); color: #F4FAFF; }
-        .ac-ultra .ac-ring {
-          opacity: 1;
-          background: conic-gradient(from 0deg, transparent 0 50%, #7FF6FF 72%, #E5E4E2 84%, transparent 100%);
+      always: `${shared}
+        .ac-platinum .ac-card { border-color: ${lightCard ? 'var(--ac-tier-dark)' : '#E5E4E2'}; }
+        /* Steam's own platinum flourish: a shine sweeping across, more sparkles. */
+        .ac-platinum .ac-trophy { overflow: hidden; }
+        .ac-platinum .ac-trophy::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          translate: -120% 0;
+          background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.6) 46%, rgb(255 255 255 / 0.15) 54%, transparent 70%);
         }
-        @keyframes ac-pulse-ultra {
-          0%, 100% {
-            box-shadow: 0 0 14px rgb(229 228 226 / 0.55), 0 0 30px rgb(0 255 255 / 0.25), 0 6px 18px rgb(0 0 0 / 0.35);
-          }
-          50% {
-            box-shadow: 0 0 24px rgb(0 255 255 / 0.65), 0 0 52px rgb(229 228 226 / 0.4), 0 6px 18px rgb(0 0 0 / 0.35);
-          }
+        .ac-platinum .ac-glint-more { display: inline; }
+        .ac-platinum .ac-ring {
+          opacity: 1;
+          --ac-ring-light: conic-gradient(from 0deg, transparent 0 50%, #7FF6FF 72%, #E5E4E2 84%, transparent 100%);
+        }
+        .ac-platinum .ac-card {
+          box-shadow: 0 0 14px rgb(229 228 226 / 0.55), 0 0 30px rgb(0 255 255 / 0.25), 0 6px 18px rgb(0 0 0 / 0.35);
+        }
+        .ac-platinum .ac-card::before {
+          ${PULSE_LAYER}
+          box-shadow: 0 0 24px rgb(0 255 255 / 0.65), 0 0 52px rgb(229 228 226 / 0.4);
+          animation: ac-pulse 2s ease-in-out 900ms infinite;
+        }
+        @keyframes ac-pulse { 50% { opacity: 1; } }`,
+      full: `${glint}
+        .ac-platinum .ac-ring::before { animation: ac-spin 2.2s linear infinite; }
+        .ac-platinum .ac-trophy::after { animation: ac-plat-shine 3s ease-in-out infinite; }
+        .ac-glint-2 { animation-delay: -0.8s; }
+        .ac-glint-3 { animation-delay: -1.6s; }
+        @keyframes ac-plat-shine {
+          0% { translate: -120% 0; }
+          35%, 100% { translate: 120% 0; }
         }`,
-      full: '.ac-ultra .ac-ring { animation: ac-spin 2.2s linear infinite; }',
       reduced: '',
     };
   }
-  return {always: '', full: '', reduced: ''};
+  return {always: shared, full: glint, reduced: ''};
 }
 
 function shineCss(settings: ThemeSettings, intense: boolean): MotionParts {
@@ -213,29 +320,29 @@ function baseCss(settings: ThemeSettings, tier: RarityTier): MotionParts {
   const shadow = settings.glowEnabled
     ? `0 0 ${glowPx}px rgb(var(--ac-accent-rgb) / ${glowAlpha}), 0 0 ${glowPx * 2}px rgb(var(--ac-accent-rgb) / 0.25), 0 6px 18px rgb(0 0 0 / 0.35)`
     : '0 6px 18px rgb(0 0 0 / 0.35)';
-  const shine = shineCss(settings, tier === 'rare' || tier === 'ultra');
+  const shine = shineCss(settings, tier === 'gold' || tier === 'platinum');
   const iconBorder = settings.iconBorder
     ? 'border: 2px solid var(--ac-accent); box-shadow: 0 0 8px rgb(var(--ac-accent-rgb) / 0.4);'
     : 'border: 0; box-shadow: none;';
 
   return {
-    // round() keeps an odd-height card on whole pixels so pixel art stays
-    // sharp; older clients drop it and keep -50%.
+    // round() to 2px keeps an odd-height card on whole device pixels at 1x and
+    // at Steam's 1.5x UI scale, so pixel art stays sharp; older clients drop it
+    // and keep -50%.
     always: `
       .ac-toast {
-        --ac-dx: 1;
         position: absolute !important;
         left: -6px;
         right: 14px;
         top: 50%;
         translate: 0 -50%;
-        translate: 0 round(-50%, 1px);
+        translate: 0 round(-50%, 2px);
         margin: 0;
         font-family: "Motiva Sans", "Segoe UI", Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
       /* Steam mirrors the popup on the left (left: 0; right: 20px). */
-      .ac-toast[data-edge~="left"] { --ac-dx: -1; left: 14px; right: -6px; }
+      .ac-toast[data-edge~="mirrored"] { left: 14px; right: -6px; }
       .ac-toast[data-edge~="ingame"] { top: auto; bottom: 58px; translate: none; }
       .ac-toast[data-edge~="ingame"][data-edge~="top"] { top: 38px; bottom: auto; }
       .ac-toast.ac-preview {
@@ -275,6 +382,7 @@ function baseCss(settings: ThemeSettings, tier: RarityTier): MotionParts {
         border-radius: var(--ac-icon-radius);
       }
       .ac-compact .ac-icon { flex-basis: 40px; width: 40px; height: 40px; }
+      .ac-face { height: 100%; border-radius: inherit; }
       .ac-icon img, .ac-icon-fallback {
         display: block;
         width: 100%;
@@ -303,6 +411,14 @@ function baseCss(settings: ThemeSettings, tier: RarityTier): MotionParts {
         -webkit-mask-composite: xor;
         mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
         mask-composite: exclude;
+      }
+      /* The light turns inside the still ring, so square and rounded icons get
+         it traced side by side rather than a spinning frame. */
+      .ac-ring::before {
+        content: "";
+        position: absolute;
+        inset: -25%;
+        background: var(--ac-ring-light, none);
       }
 
       .ac-text {
@@ -421,11 +537,13 @@ export function buildToastCss(
 ): string {
   const parts: MotionParts[] = [
     baseCss(settings, tier),
-    motionCss(
-      settings.popupAnimation ? settings.entranceStyle : null,
-      PULSE[tier],
+    motionCss(settings.popupAnimation ? settings.entranceStyle : null),
+    // Pale tiers turn to their dark tone on light cards to stay readable.
+    rarityCss(tier, isLightColor(settings.primaryColor)),
+    revealCss(
+      tier === 'none' ? 'off' : settings.trophyReveal,
+      settings.duration,
     ),
-    rarityCss(tier),
     decorationCss(settings.decorativeElements),
   ];
   const join = (key: keyof MotionParts): string =>
@@ -466,20 +584,23 @@ export function AchievementToast({
 }: AchievementToastProps) {
   const settings = useMemo(() => sanitizeSettings(rawSettings), [rawSettings]);
   const rootRef = useRef<HTMLDivElement>(null);
-  const [edge, setEdge] = useState<string | undefined>(undefined);
+  // Null when Steam's toast window is stock and the position was not applied.
+  const [windowFlags, setWindowFlags] = useState<string | null>('');
   const [compact, setCompact] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
 
-  // Runs before first paint so the entrance already knows which edge it comes
-  // from, and whether the toast window is the stock 80px one.
+  // Runs before first paint so the card already sits right in Steam's window,
+  // and knows whether that window is the stock 80px one.
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (mode !== 'live' || !root) return;
-    const anchor = edgeOf?.(root);
-    if (anchor) {
-      const vertical = anchor.top ? 'top' : 'bottom';
-      const horizontal = anchor.left ? 'left' : 'right';
-      setEdge(`${vertical} ${horizontal}${anchor.inGame ? ' ingame' : ''}`);
+    const layout = edgeOf?.(root);
+    if (layout === null) {
+      setWindowFlags(null);
+    } else if (layout) {
+      setWindowFlags(
+        `${layout.inGame ? ' ingame' : ''}${layout.mirrored ? ' mirrored' : ''}`,
+      );
     }
     // Steam's toast window is 1x1 or 2x2 until first shown; a real one is at
     // least 80px tall.
@@ -511,7 +632,7 @@ export function AchievementToast({
     };
   }, [mode, edgeOf]);
 
-  const tier = rarityTier(achievement.globalPercent, settings.rarityEffects);
+  const tier = rarityTier(achievement, settings.rarityEffects);
   const css = useMemo(() => buildToastCss(settings, tier), [settings, tier]);
 
   const {progress} = achievement;
@@ -531,8 +652,18 @@ export function AchievementToast({
       )
     : 0;
 
+  // Only an unlock earns its trophy.
+  const revealing =
+    tier !== 'none' && settings.trophyReveal !== 'off' && achievement.achieved;
+  // A stock window sits where Steam put it: bottom right unless a game moved it.
+  const edge =
+    windowFlags === null
+      ? 'bottom right'
+      : `${settings.position.replace('-', ' ')}${windowFlags}`;
+
   const classes = ['ac-toast'];
   if (mode === 'preview') classes.push('ac-preview');
+  if (revealing) classes.push('ac-reveal');
   if (compact) classes.push('ac-compact');
   if (tier !== 'none') classes.push(`ac-${tier}`);
   if (hasDecorationBackground(settings.decorativeElements)) {
@@ -560,26 +691,45 @@ export function AchievementToast({
       <div className={cardClass}>
         <DecorationLayer variant={settings.decorativeElements} />
         <div className="ac-icon">
-          {achievement.image && !imageFailed ? (
-            <img
-              src={achievement.image}
-              alt=""
-              onError={() => {
-                setImageFailed(true);
-              }}
-            />
-          ) : (
-            <div className="ac-icon-fallback">
-              <Badge />
-            </div>
-          )}
+          {/* Reveals animate this wrapper, so a late image failure that swaps
+              in the badge does not restart them. */}
+          <div className="ac-face">
+            {achievement.image && !imageFailed ? (
+              <img
+                src={achievement.image}
+                alt=""
+                onError={() => {
+                  setImageFailed(true);
+                }}
+              />
+            ) : (
+              <div className="ac-icon-fallback">
+                <Badge />
+              </div>
+            )}
+          </div>
+          {revealing ? (
+            <>
+              <div className="ac-trophy">
+                <TrophyIcon />
+              </div>
+              {/* Reveal sprites; Blood and Laser Blast use all eight. */}
+              <span className="ac-reveal-fx">
+                {[...Array(8).keys()].map((n) => (
+                  <i key={n} />
+                ))}
+              </span>
+            </>
+          ) : null}
           <div className="ac-ring" />
         </div>
         <div className="ac-text">
           <div className="ac-eyebrow">
             <Badge />
             <span className="ac-eyebrow-label">
-              {shownProgress ? 'Achievement progress' : UNLOCK_LABEL[tier]}
+              {achievement.achieved
+                ? UNLOCK_LABEL[tier]
+                : 'Achievement progress'}
             </span>
             {pill}
           </div>

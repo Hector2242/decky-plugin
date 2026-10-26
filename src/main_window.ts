@@ -107,12 +107,14 @@ function buildAchievementPageCss(rawSettings: ThemeSettings): string {
     ${labelCss}
     ${unlockedCss}
     ${motionOnly(
+      // The unlocked glow breathes three times, then rests: an endless
+      // box-shadow animation repaints every frame, even behind a game.
       `
       ${row} {
         transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
       }
       ${row}:hover, ${row}.gpfocus { transform: scale(1.02) !important; }
-      ${unlock ? `${row}:has(${unlock}) { animation: achievement-customizer-glow 3s ease-in-out infinite !important; }` : ''}`,
+      ${unlock ? `${row}:has(${unlock}) { animation: achievement-customizer-glow 3s ease-in-out 3 !important; }` : ''}`,
       settings,
     )}
   `;
@@ -154,7 +156,9 @@ let currentCss = '';
  */
 export function ensureMainWindowCss(settings?: ThemeSettings): boolean {
   if (settings) {
-    currentCss = buildAchievementPageCss(settings) + buildToastWindowCss();
+    currentCss =
+      buildAchievementPageCss(settings) +
+      buildToastWindowCss(settings.position);
   }
   const windowDocument = mainDocument();
   if (!windowDocument?.head) return false;

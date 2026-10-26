@@ -200,11 +200,19 @@ function skyDayCss(): MotionParts {
         border-radius: 50%;
         background: #ECCA2F;
         box-shadow: ${sunGlow}, 0 0 12px rgb(236 202 47 / 0.35);
+      }
+      /* The glow breathes by fading a brighter one in and out: opacity runs
+         on the GPU, an animated box-shadow repaints every frame. */
+      .ac-sun::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        box-shadow: 0 0 18px rgb(236 202 47 / 0.7);
+        opacity: 0;
         animation: ac-sun 4s ease-in-out infinite;
       }
-      @keyframes ac-sun {
-        50% { box-shadow: ${sunGlow}, 0 0 18px rgb(236 202 47 / 0.7); }
-      }
+      @keyframes ac-sun { 50% { opacity: 1; } }
       .ac-birds { position: absolute; top: 22%; left: 40%; opacity: 0.5; }
       .ac-cloud-1, .ac-cloud-2, .ac-cloud-3 {
         position: absolute;
@@ -284,21 +292,28 @@ function skyNightCss(): MotionParts {
         right: 11px;
         width: 26px;
         height: 26px;
-        animation: ac-moon 5s ease-in-out infinite;
       }
-      .ac-moon::before {
+      .ac-moon::before, .ac-moon::after {
         content: "";
         position: absolute;
         inset: 0;
         border-radius: 50%;
+      }
+      /* A glowing copy behind the crescent fades in and out: opacity runs on
+         the GPU, an animated filter repaints every frame. */
+      .ac-moon::before {
+        background: radial-gradient(circle at 76% 41%, transparent 44%, #C4C9D1 45%);
+        filter: drop-shadow(0 0 5px rgb(255 255 255 / 0.45));
+        opacity: 0;
+        animation: ac-moon 5s ease-in-out infinite;
+      }
+      .ac-moon::after {
         background: #C4C9D1;
         box-shadow: inset 1px 1px 2px rgb(254 255 239 / 0.5);
         -webkit-mask: ${crescent};
         mask: ${crescent};
       }
-      @keyframes ac-moon {
-        50% { filter: drop-shadow(0 0 5px rgb(255 255 255 / 0.45)); }
-      }
+      @keyframes ac-moon { 50% { opacity: 1; } }
       .ac-star {
         position: absolute;
         background: #fff;

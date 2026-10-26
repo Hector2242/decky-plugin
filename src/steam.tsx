@@ -15,7 +15,7 @@ import {
 import {createElement} from 'react';
 
 import {ensureMainWindowCss, mainDocument} from './main_window';
-import {getCurrentSettings} from './settings';
+import {type ToastPosition, getCurrentSettings} from './settings';
 import {type ToastAchievement, type ToastEdge, AchievementToast} from './toast';
 
 // EClientNotificationType.Achievement
@@ -70,6 +70,17 @@ interface PoppedToast {
   eType?: number;
   decky?: boolean;
   nToastDurationMS?: number;
+  notificationID?: number;
+  data?: unknown;
+}
+
+interface AchievementList {
+  data?: {rgAchievements?: Array<{strID?: unknown; bAchieved?: unknown}>};
+}
+
+interface AppLifetimeEvent {
+  unAppID?: number;
+  bRunning?: boolean;
 }
 
 /** A deserialized protobuf message: each field is a getter method. */
@@ -81,7 +92,27 @@ interface ProtoMessage {
 const steamGlobals = globalThis as typeof globalThis & {
   __TOASTER_INSTANCE?: {toastPatch?: {object?: {component?: unknown}}};
   NotificationStore?: NotificationStore;
+  SteamClient?: {
+    Apps?: {
+      GetMyAchievementsForApp?: (appId: string) => Promise<AchievementList>;
+    };
+    GameSessions?: {
+      RegisterForAppLifetimeNotifications?: (
+        callback: (event: AppLifetimeEvent) => void,
+      ) => {unregister?: () => void} | undefined;
+    };
+  };
+  SteamUIStore?: {RunningApps?: Array<{appid?: number}>};
 };
+
+// Each running game's locked achievement ids (Steam's strID, which is also
+// the notification's achievement_id).
+const lockedByApp = new Map<number, Set<string>>();
+// Test notifications that play a game's completing unlock.
+const testCompletions = new Set<number>();
+// Whether the toast Steam popped last completes its game; decided once per
+// toast because deciding also marks its achievement unlocked.
+let poppedCompletion: {notificationID: number; completes: boolean} | undefined;
 
 /** Calls a protobuf getter; a missing or throwing getter reads as undefined. */
 function readField(message: ProtoMessage, field: string): unknown {
@@ -99,7 +130,8 @@ function stringField(message: ProtoMessage, field: string): string {
 
 function numberField(message: ProtoMessage, field: string): number {
   const value = readField(message, field);
-  return typeof value === 'number' ? value : 0;
+  // Steam's float fields can carry NaN or Infinity.
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function booleanField(message: ProtoMessage, field: string): boolean {
@@ -115,6 +147,7 @@ function readAchievement(data: unknown): ToastAchievement | null {
   const message = data as ProtoMessage;
   const name = stringField(message, 'name');
   if (!name) return null;
+  const globalPercent = numberField(message, 'global_achieved_pct');
   return {
     appId: numberField(message, 'appid'),
     id: stringField(message, 'achievement_id'),
@@ -122,7 +155,8 @@ function readAchievement(data: unknown): ToastAchievement | null {
     description: stringField(message, 'description'),
     image: stringField(message, 'image_url'),
     achieved: booleanField(message, 'achieved'),
-    globalPercent: numberField(message, 'global_achieved_pct'),
+    // Above 100% is bad data: treat it as unknown.
+    globalPercent: globalPercent <= 100 ? globalPercent : 0,
     progress: {
       min: numberField(message, 'min_progress'),
       current: numberField(message, 'current_progress'),
@@ -150,7 +184,16 @@ function achievementFromProps(
     const data = first.data as MarkedToastData | undefined;
     return data?.achievementToast ?? null;
   }
-  return group.eType === ACHIEVEMENT_TYPE ? readAchievement(first.data) : null;
+  if (group.eType !== ACHIEVEMENT_TYPE) return null;
+  const achievement = readAchievement(first.data);
+  if (
+    achievement &&
+    first.notificationID !== undefined &&
+    poppedCompletion?.notificationID === first.notificationID
+  ) {
+    achievement.completesGame = poppedCompletion.completes;
+  }
+  return achievement;
 }
 
 function openAchievements(appId: number): void {
@@ -232,6 +275,98 @@ export function installDurationPatch(): () => void {
   };
 }
 
+async function loadLocked(appId: number): Promise<void> {
+  try {
+    const list = (
+      await steamGlobals.SteamClient?.Apps?.GetMyAchievementsForApp?.(
+        String(appId),
+      )
+    )?.data?.rgAchievements;
+    if (!Array.isArray(list) || list.length === 0) return;
+    lockedByApp.set(
+      appId,
+      new Set(list.filter((a) => !a.bAchieved).map((a) => String(a.strID))),
+    );
+  } catch (error: unknown) {
+    console.warn(
+      '[AchievementCustomizer] could not load achievements of',
+      appId,
+      error,
+    );
+  }
+}
+
+// An unlock completes its game when it takes the last id off the locked set.
+function decideCompletion(toast: PoppedToast): boolean {
+  const id = toast.notificationID;
+  if (id !== undefined && testCompletions.delete(id)) return true;
+  const achievement = readAchievement(toast.data);
+  if (!achievement?.achieved) return false;
+  const locked = lockedByApp.get(achievement.appId);
+  return !!locked && locked.delete(achievement.id) && locked.size === 0;
+}
+
+/**
+ * Tracks the achievements each running game still has locked, so the toast of
+ * the one that completes the game shows as platinum. Returns the uninstaller.
+ *
+ * Steam's list takes 90-350 ms to arrive, too late for a toast, so it is
+ * loaded when a game starts and kept current as its toasts pop. Without it
+ * every toast keeps its rarity tier.
+ */
+export function installCompletionTracking(): () => void {
+  const store = steamGlobals.NotificationStore;
+  if (!store || typeof store.PopNextToastNotification !== 'function') {
+    return () => {};
+  }
+  for (const app of steamGlobals.SteamUIStore?.RunningApps ?? []) {
+    if (app.appid) void loadLocked(app.appid);
+  }
+  let lifetime: {unregister?: () => void} | undefined;
+  try {
+    lifetime =
+      steamGlobals.SteamClient?.GameSessions?.RegisterForAppLifetimeNotifications?.(
+        (event) => {
+          if (!event.unAppID) return;
+          if (event.bRunning) {
+            void loadLocked(event.unAppID);
+          } else {
+            lockedByApp.delete(event.unAppID);
+          }
+        },
+      );
+  } catch (error: unknown) {
+    console.warn(
+      '[AchievementCustomizer] game start events unavailable',
+      error,
+    );
+  }
+  const patch = afterPatch(
+    store,
+    'PopNextToastNotification',
+    (...[, popped]: [unknown[], unknown]) => {
+      const toast = popped as PoppedToast | undefined;
+      if (
+        toast &&
+        toast.eType === ACHIEVEMENT_TYPE &&
+        !toast.decky &&
+        toast.notificationID !== undefined
+      ) {
+        poppedCompletion = {
+          notificationID: toast.notificationID,
+          completes: decideCompletion(toast),
+        };
+      }
+      return popped;
+    },
+  );
+  return () => {
+    patch.unpatch();
+    lifetime?.unregister?.();
+    lockedByApp.clear();
+  };
+}
+
 /**
  * Sends a real achievement notification through Steam's own pipeline (same
  * sound, renderer and duration as an unlock) without adding it to the tray.
@@ -259,6 +394,7 @@ export function fireTestAchievement(achievement: ToastAchievement): void {
       });
       const id = store.m_nNextTestNotificationID ?? FIRST_TEST_NOTIFICATION_ID;
       store.m_nNextTestNotificationID = id + 1;
+      if (achievement.completesGame) testCompletions.add(id);
       store.ProcessNotification(
         {...target, fnTray: null},
         {
@@ -300,7 +436,6 @@ export function fireTestAchievement(achievement: ToastAchievement): void {
 interface ToastWindowClasses {
   placeholder: string;
   inGame: string;
-  positionTop: string;
   positionLeft: string;
 }
 
@@ -320,15 +455,9 @@ function resolveToastWindowClasses(): ToastWindowClasses | null {
     const resolved = {
       placeholder: pick('GamepadToastPlaceholder'),
       inGame: pick('InGame'),
-      positionTop: pick('PositionTop'),
       positionLeft: pick('PositionLeft'),
     };
-    if (
-      resolved.placeholder &&
-      resolved.inGame &&
-      resolved.positionTop &&
-      resolved.positionLeft
-    ) {
+    if (resolved.placeholder && resolved.inGame && resolved.positionLeft) {
       cachedWindowClasses = resolved;
     }
   } catch (error: unknown) {
@@ -341,50 +470,52 @@ function resolveToastWindowClasses(): ToastWindowClasses | null {
 }
 
 /**
- * Returns the CSS that grows Steam's toast window to 320x128, or an empty
- * string when its classes cannot be resolved.
+ * Returns the CSS that grows Steam's toast window to 320x128 and moves it to
+ * the chosen position, or an empty string when its classes cannot be resolved.
  *
- * Steam sizes the notification window from this placeholder (stock: 300x40
- * plus 20px padding on top/bottom/left, anchored 30px from the bottom; 50px
- * from the top; 10px closer to the edge in game). Growing the padding and
- * moving the anchors by the same amount keeps every stock toast at its exact
- * screen position while the window becomes 320x128 (320x152 in game, where the
- * card sits so close to the edge that ours has to be bottom-anchored instead).
+ * Steam sizes and places the notification window from this placeholder
+ * (stock: 300x40 plus 20px padding on top/bottom/left, 30px from the bottom or
+ * 50px from the top; 10px closer to the edge in game). Growing the padding and
+ * moving the anchors by the same amount keeps a stock toast at Steam's own spot
+ * while the window becomes 320x128 (320x152 in game, where the card sits so
+ * close to the edge that ours has to be anchored to it instead). One window
+ * serves every toast, so they all move; `!important` also beats the position a
+ * game sets through Steamworks.
  */
-export function buildToastWindowCss(): string {
+export function buildToastWindowCss(position: ToastPosition): string {
   const classes = resolveToastWindowClasses();
   if (!classes) return '';
   const placeholder = `.${classes.placeholder}`;
-  const inGame = `.${classes.inGame}`;
-  const top = `.${classes.positionTop}`;
-  const left = `.${classes.positionLeft}`;
+  const top = position.startsWith('top');
+  let horizontal = 'left: unset !important; right: 0 !important;';
+  if (position.endsWith('left')) {
+    horizontal = 'left: 0 !important; right: unset !important;';
+  } else if (position.endsWith('center')) {
+    horizontal = 'left: calc(50% - 160px) !important; right: unset !important;';
+  }
   return `
     ${placeholder} {
       height: 40px !important;
       padding: 44px 0 44px 20px !important;
-      bottom: 6px !important;
+      ${top ? 'top: 26px !important; bottom: unset !important;' : 'top: unset !important; bottom: 6px !important;'}
+      ${horizontal}
     }
-    ${placeholder}${left} { padding: 44px 20px 44px 0 !important; }
-    ${placeholder}${inGame} {
-      bottom: -46px !important;
-      padding: 68px 0 44px 20px !important;
+    ${placeholder}.${classes.inGame} {
+      padding-top: 68px !important;
+      ${top ? 'top: -26px !important;' : 'bottom: -46px !important;'}
     }
-    ${placeholder}${inGame}${left} { padding: 68px 20px 44px 0 !important; }
-    ${placeholder}${top} { top: 26px !important; bottom: unset !important; }
-    ${placeholder}${top}${inGame} { top: -26px !important; }
   `;
 }
 
-// The popup element carries the same position classes as the placeholder; the
-// in-game flag only exists on the placeholder in the main window.
-function readToastEdge(root: HTMLElement): ToastEdge {
+// The popup carries Steam's own left-side class; the in-game flag only exists
+// on the placeholder in the main window.
+function readToastEdge(root: HTMLElement): ToastEdge | null {
   const classes = resolveToastWindowClasses();
-  if (!classes) return {top: false, left: false, inGame: false};
-  const popupClasses = root.parentElement?.classList;
+  if (!classes) return null;
   const placeholder = mainDocument()?.querySelector(`.${classes.placeholder}`);
   return {
-    top: popupClasses?.contains(classes.positionTop) ?? false,
-    left: popupClasses?.contains(classes.positionLeft) ?? false,
     inGame: placeholder?.classList.contains(classes.inGame) ?? false,
+    mirrored:
+      root.parentElement?.classList.contains(classes.positionLeft) ?? false,
   };
 }
