@@ -1,6 +1,6 @@
 {
   "name": "achievement-customizer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Decky Loader plugin that turns Steam Deck achievement notifications into themed, console-style animated toasts.",
   "type": "module",
   "scripts": {

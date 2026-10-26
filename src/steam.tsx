@@ -15,7 +15,7 @@ import {
 import {createElement} from 'react';
 
 import {ensureMainWindowCss, mainDocument} from './main_window';
-import {getCurrentSettings} from './settings';
+import {type ToastPosition, getCurrentSettings} from './settings';
 import {type ToastAchievement, type ToastEdge, AchievementToast} from './toast';
 
 // EClientNotificationType.Achievement
@@ -99,7 +99,8 @@ function stringField(message: ProtoMessage, field: string): string {
 
 function numberField(message: ProtoMessage, field: string): number {
   const value = readField(message, field);
-  return typeof value === 'number' ? value : 0;
+  // Steam's float fields can carry NaN or Infinity.
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function booleanField(message: ProtoMessage, field: string): boolean {
@@ -115,6 +116,7 @@ function readAchievement(data: unknown): ToastAchievement | null {
   const message = data as ProtoMessage;
   const name = stringField(message, 'name');
   if (!name) return null;
+  const globalPercent = numberField(message, 'global_achieved_pct');
   return {
     appId: numberField(message, 'appid'),
     id: stringField(message, 'achievement_id'),
@@ -122,7 +124,8 @@ function readAchievement(data: unknown): ToastAchievement | null {
     description: stringField(message, 'description'),
     image: stringField(message, 'image_url'),
     achieved: booleanField(message, 'achieved'),
-    globalPercent: numberField(message, 'global_achieved_pct'),
+    // Above 100% is bad data: treat it as unknown.
+    globalPercent: globalPercent <= 100 ? globalPercent : 0,
     progress: {
       min: numberField(message, 'min_progress'),
       current: numberField(message, 'current_progress'),
@@ -300,7 +303,6 @@ export function fireTestAchievement(achievement: ToastAchievement): void {
 interface ToastWindowClasses {
   placeholder: string;
   inGame: string;
-  positionTop: string;
   positionLeft: string;
 }
 
@@ -320,15 +322,9 @@ function resolveToastWindowClasses(): ToastWindowClasses | null {
     const resolved = {
       placeholder: pick('GamepadToastPlaceholder'),
       inGame: pick('InGame'),
-      positionTop: pick('PositionTop'),
       positionLeft: pick('PositionLeft'),
     };
-    if (
-      resolved.placeholder &&
-      resolved.inGame &&
-      resolved.positionTop &&
-      resolved.positionLeft
-    ) {
+    if (resolved.placeholder && resolved.inGame && resolved.positionLeft) {
       cachedWindowClasses = resolved;
     }
   } catch (error: unknown) {
@@ -341,50 +337,52 @@ function resolveToastWindowClasses(): ToastWindowClasses | null {
 }
 
 /**
- * Returns the CSS that grows Steam's toast window to 320x128, or an empty
- * string when its classes cannot be resolved.
+ * Returns the CSS that grows Steam's toast window to 320x128 and moves it to
+ * the chosen position, or an empty string when its classes cannot be resolved.
  *
- * Steam sizes the notification window from this placeholder (stock: 300x40
- * plus 20px padding on top/bottom/left, anchored 30px from the bottom; 50px
- * from the top; 10px closer to the edge in game). Growing the padding and
- * moving the anchors by the same amount keeps every stock toast at its exact
- * screen position while the window becomes 320x128 (320x152 in game, where the
- * card sits so close to the edge that ours has to be bottom-anchored instead).
+ * Steam sizes and places the notification window from this placeholder
+ * (stock: 300x40 plus 20px padding on top/bottom/left, 30px from the bottom or
+ * 50px from the top; 10px closer to the edge in game). Growing the padding and
+ * moving the anchors by the same amount keeps a stock toast at Steam's own spot
+ * while the window becomes 320x128 (320x152 in game, where the card sits so
+ * close to the edge that ours has to be anchored to it instead). One window
+ * serves every toast, so they all move; `!important` also beats the position a
+ * game sets through Steamworks.
  */
-export function buildToastWindowCss(): string {
+export function buildToastWindowCss(position: ToastPosition): string {
   const classes = resolveToastWindowClasses();
   if (!classes) return '';
   const placeholder = `.${classes.placeholder}`;
-  const inGame = `.${classes.inGame}`;
-  const top = `.${classes.positionTop}`;
-  const left = `.${classes.positionLeft}`;
+  const top = position.startsWith('top');
+  let horizontal = 'left: unset !important; right: 0 !important;';
+  if (position.endsWith('left')) {
+    horizontal = 'left: 0 !important; right: unset !important;';
+  } else if (position.endsWith('center')) {
+    horizontal = 'left: calc(50% - 160px) !important; right: unset !important;';
+  }
   return `
     ${placeholder} {
       height: 40px !important;
       padding: 44px 0 44px 20px !important;
-      bottom: 6px !important;
+      ${top ? 'top: 26px !important; bottom: unset !important;' : 'top: unset !important; bottom: 6px !important;'}
+      ${horizontal}
     }
-    ${placeholder}${left} { padding: 44px 20px 44px 0 !important; }
-    ${placeholder}${inGame} {
-      bottom: -46px !important;
-      padding: 68px 0 44px 20px !important;
+    ${placeholder}.${classes.inGame} {
+      padding-top: 68px !important;
+      ${top ? 'top: -26px !important;' : 'bottom: -46px !important;'}
     }
-    ${placeholder}${inGame}${left} { padding: 68px 20px 44px 0 !important; }
-    ${placeholder}${top} { top: 26px !important; bottom: unset !important; }
-    ${placeholder}${top}${inGame} { top: -26px !important; }
   `;
 }
 
-// The popup element carries the same position classes as the placeholder; the
-// in-game flag only exists on the placeholder in the main window.
-function readToastEdge(root: HTMLElement): ToastEdge {
+// The popup carries Steam's own left-side class; the in-game flag only exists
+// on the placeholder in the main window.
+function readToastEdge(root: HTMLElement): ToastEdge | null {
   const classes = resolveToastWindowClasses();
-  if (!classes) return {top: false, left: false, inGame: false};
-  const popupClasses = root.parentElement?.classList;
+  if (!classes) return null;
   const placeholder = mainDocument()?.querySelector(`.${classes.placeholder}`);
   return {
-    top: popupClasses?.contains(classes.positionTop) ?? false,
-    left: popupClasses?.contains(classes.positionLeft) ?? false,
     inGame: placeholder?.classList.contains(classes.inGame) ?? false,
+    mirrored:
+      root.parentElement?.classList.contains(classes.positionLeft) ?? false,
   };
 }

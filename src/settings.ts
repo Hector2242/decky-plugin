@@ -16,6 +16,7 @@ const PRESET_NAMES = [
   'pixel-night',
   'pixel-sakura',
   'pixel-halloween',
+  'pixel-hoth',
   'custom',
 ] as const;
 const ICON_SHAPES = ['circle', 'rounded', 'square'] as const;
@@ -30,6 +31,7 @@ const DECORATIONS = [
   'pixel-night',
   'pixel-sakura',
   'pixel-halloween',
+  'pixel-hoth',
 ] as const;
 const ENTRANCE_STYLES = [
   'pop',
@@ -40,6 +42,22 @@ const ENTRANCE_STYLES = [
   'drop',
   'flip',
   'retro',
+] as const;
+const TROPHY_REVEALS = [
+  'off',
+  'spin',
+  'coin',
+  'pixels',
+  'bullets',
+  'blood',
+] as const;
+const POSITIONS = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
 ] as const;
 
 /** A built-in look, or `custom` once the user edits any value. */
@@ -52,6 +70,10 @@ export type BannerStyle = (typeof BANNER_STYLES)[number];
 export type Decoration = (typeof DECORATIONS)[number];
 /** Entrance animation, each with its matching exit. */
 export type EntranceStyle = (typeof ENTRANCE_STYLES)[number];
+/** How the achievement icon turns into its tier trophy. */
+export type TrophyReveal = (typeof TROPHY_REVEALS)[number];
+/** Where on screen Steam's toast window sits, as "vertical-horizontal". */
+export type ToastPosition = (typeof POSITIONS)[number];
 
 /** Everything a preset sets: the look of the toast. */
 interface PresetValues {
@@ -66,7 +88,6 @@ interface PresetValues {
   iconBorder: boolean;
   iconShape: IconShape;
   bannerStyle: BannerStyle;
-  rarityEffects: boolean;
   popupAnimation: boolean;
   decorativeElements: Decoration;
   entranceStyle: EntranceStyle;
@@ -78,6 +99,15 @@ export interface ThemeSettings extends PresetValues {
   preset: PresetName;
   /** How long a toast stays on screen, in ms. A preference, so presets never set it. */
   duration: number;
+  /** Where every Steam toast appears. A preference, so presets never set it. */
+  position: ToastPosition;
+  /**
+   * Bronze, silver, gold and platinum trophy tiers, with every rarity effect.
+   * A preference, so presets never set it.
+   */
+  rarityEffects: boolean;
+  /** How the icon turns into its trophy. A preference, so presets never set it. */
+  trophyReveal: TrophyReveal;
   /**
    * Full animations even when Steam's Reduce Motion is on. A preference, so
    * presets never set it.
@@ -100,7 +130,6 @@ const BASE: PresetValues = {
   iconBorder: true,
   iconShape: 'circle',
   bannerStyle: 'gradient',
-  rarityEffects: true,
   popupAnimation: true,
   decorativeElements: 'none',
   entranceStyle: 'unfold',
@@ -238,6 +267,19 @@ export const PRESETS: Record<Exclude<PresetName, 'custom'>, PresetValues> = {
     decorativeElements: 'pixel-halloween',
     entranceStyle: 'retro',
   },
+  // Hoth's sky runs from Secondary at the top to Primary above the snow.
+  'pixel-hoth': {
+    ...BASE,
+    primaryColor: '#1F86E0',
+    secondaryColor: '#06489B',
+    accentColor: '#9FD6FF',
+    textColor: '#FFFFFF',
+    descColor: '#D6ECFF',
+    glowIntensity: 15,
+    borderRadius: 4,
+    decorativeElements: 'pixel-hoth',
+    entranceStyle: 'retro',
+  },
 };
 
 /**
@@ -247,6 +289,9 @@ export const PRESETS: Record<Exclude<PresetName, 'custom'>, PresetValues> = {
 export const DEFAULT_SETTINGS: ThemeSettings = {
   preset: 'xbox',
   duration: 6000,
+  position: 'bottom-right',
+  rarityEffects: true,
+  trophyReveal: 'spin',
   ignoreReducedMotion: false,
   ...PRESETS.xbox,
 };
@@ -265,6 +310,7 @@ export const PRESET_OPTIONS = [
   {data: 'pixel-night', label: 'Pixel Night'},
   {data: 'pixel-sakura', label: 'Cherry Blossom'},
   {data: 'pixel-halloween', label: 'Halloween'},
+  {data: 'pixel-hoth', label: 'Hoth'},
   {data: 'custom', label: 'Custom'},
 ];
 
@@ -292,7 +338,8 @@ export const TOAST_SHAPE_OPTIONS = [
 
 /** Entrance style dropdown entries. */
 export const ENTRANCE_OPTIONS = [
-  {data: 'unfold', label: 'Unfold (Xbox)'},
+  // Still keyed 'unfold', the old Xbox entrance, so saved settings keep it.
+  {data: 'unfold', label: 'Xbox One'},
   {data: 'drop', label: 'Drop (PlayStation)'},
   {data: 'slide', label: 'Slide In'},
   {data: 'pop', label: 'Pop'},
@@ -300,6 +347,26 @@ export const ENTRANCE_OPTIONS = [
   {data: 'fade', label: 'Fade'},
   {data: 'flip', label: 'Flip'},
   {data: 'retro', label: 'Retro (16-bit)'},
+];
+
+/** Trophy reveal dropdown entries. */
+export const REVEAL_OPTIONS = [
+  {data: 'off', label: 'Off'},
+  {data: 'spin', label: 'Spin'},
+  {data: 'coin', label: 'Coin Flip'},
+  {data: 'pixels', label: 'Pixel Eater'},
+  {data: 'bullets', label: 'Laser Blast'},
+  {data: 'blood', label: 'Blood Drip'},
+];
+
+/** Toast position dropdown entries. */
+export const POSITION_OPTIONS = [
+  {data: 'top-left', label: 'Top Left'},
+  {data: 'top-center', label: 'Top Middle'},
+  {data: 'top-right', label: 'Top Right'},
+  {data: 'bottom-left', label: 'Bottom Left'},
+  {data: 'bottom-center', label: 'Bottom Middle'},
+  {data: 'bottom-right', label: 'Bottom Right'},
 ];
 
 /** Decoration dropdown entries. */
@@ -312,6 +379,7 @@ export const DECORATION_OPTIONS = [
   {data: 'pixel-night', label: 'Pixel Night (16-bit)'},
   {data: 'pixel-sakura', label: 'Cherry Blossom (16-bit)'},
   {data: 'pixel-halloween', label: 'Halloween (16-bit)'},
+  {data: 'pixel-hoth', label: 'Hoth (16-bit)'},
 ];
 
 const HEX_COLOR_PATTERN = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -378,7 +446,8 @@ export function sanitizeSettings(
       defaults.glowIntensity,
     ),
     borderRadius: clampNumber(input.borderRadius, 0, 32, defaults.borderRadius),
-    duration: clampNumber(input.duration, 1000, 30000, defaults.duration),
+    // The panel's shortest choice; trophy reveals need about 2.2 s.
+    duration: clampNumber(input.duration, 3000, 30000, defaults.duration),
     iconBorder: safeBoolean(input.iconBorder, defaults.iconBorder),
     iconShape: safeChoice(input.iconShape, ICON_SHAPES, defaults.iconShape),
     bannerStyle: safeChoice(
@@ -387,6 +456,11 @@ export function sanitizeSettings(
       defaults.bannerStyle,
     ),
     rarityEffects: safeBoolean(input.rarityEffects, defaults.rarityEffects),
+    trophyReveal: safeChoice(
+      input.trophyReveal,
+      TROPHY_REVEALS,
+      defaults.trophyReveal,
+    ),
     popupAnimation: safeBoolean(input.popupAnimation, defaults.popupAnimation),
     decorativeElements: safeChoice(
       input.decorativeElements,
@@ -399,6 +473,7 @@ export function sanitizeSettings(
       defaults.entranceStyle,
     ),
     shineEnabled: safeBoolean(input.shineEnabled, defaults.shineEnabled),
+    position: safeChoice(input.position, POSITIONS, defaults.position),
     ignoreReducedMotion: safeBoolean(
       input.ignoreReducedMotion,
       defaults.ignoreReducedMotion,

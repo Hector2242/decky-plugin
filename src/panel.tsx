@@ -27,8 +27,10 @@ import {
   DEFAULT_SETTINGS,
   ENTRANCE_OPTIONS,
   ICON_SHAPE_OPTIONS,
+  POSITION_OPTIONS,
   PRESETS,
   PRESET_OPTIONS,
+  REVEAL_OPTIONS,
   TOAST_SHAPE_OPTIONS,
   getCurrentSettings,
   hexToHsl,
@@ -47,7 +49,7 @@ const saveSettings = callable<[settings: ThemeSettings], boolean>(
 const SAMPLE_IMAGE =
   'https://shared.steamstatic.com/community_assets/images/apps/22380/ee1e9636c2b7d5add9123ef556c80fdd87ba1669.jpg';
 
-type SampleName = 'unlock' | 'rare' | 'ultra' | 'progress';
+type SampleName = 'unlock' | 'silver' | 'gold' | 'platinum' | 'progress';
 
 const SAMPLES: Record<SampleName, ToastAchievement> = {
   unlock: {
@@ -58,20 +60,29 @@ const SAMPLES: Record<SampleName, ToastAchievement> = {
       'Unlock every collectible across all nine regions without fast travel',
     image: SAMPLE_IMAGE,
     achieved: true,
-    globalPercent: 42.5,
+    globalPercent: 62.5,
   },
-  rare: {
+  silver: {
     appId: 0,
-    id: 'sample_rare',
+    id: 'sample_silver',
+    name: 'Explorer',
+    description: 'Discover every hidden area in the first region',
+    image: SAMPLE_IMAGE,
+    achieved: true,
+    globalPercent: 31.7,
+  },
+  gold: {
+    appId: 0,
+    id: 'sample_gold',
     name: 'Sharpshooter',
     description: 'Land 50 consecutive headshots without missing a single shot',
     image: SAMPLE_IMAGE,
     achieved: true,
-    globalPercent: 4.2,
+    globalPercent: 9.6,
   },
-  ultra: {
+  platinum: {
     appId: 0,
-    id: 'sample_ultra',
+    id: 'sample_platinum',
     name: 'Diamond Hands',
     description: 'Finish the campaign on Nightmare without dying once',
     image: SAMPLE_IMAGE,
@@ -100,20 +111,50 @@ interface TestButton {
   sample: SampleName;
   label: string;
   description: string;
+  /** Label and description while Trophy Tiers is off. */
+  plain: [string, string];
 }
 
 const TEST_BUTTONS: TestButton[] = [
   {
     sample: 'unlock',
     label: 'Achievement',
-    description: 'Long title and description to check truncation',
+    description:
+      'Bronze, with a long title and description to check truncation',
+    plain: ['Achievement', 'Long title and description to check truncation'],
   },
-  {sample: 'rare', label: 'Rare', description: 'Under 10% of players'},
-  {sample: 'ultra', label: 'Ultra Rare', description: 'Under 1% of players'},
+  {
+    sample: 'silver',
+    label: 'Silver',
+    description: 'Under 50% of players',
+    plain: [
+      `${SAMPLES.silver.globalPercent}% of players`,
+      'Shows the share of players who have it',
+    ],
+  },
+  {
+    sample: 'gold',
+    label: 'Gold',
+    description: 'Under 15% of players',
+    plain: [
+      `${SAMPLES.gold.globalPercent}% of players`,
+      'Shows the share of players who have it',
+    ],
+  },
+  {
+    sample: 'platinum',
+    label: 'Platinum',
+    description: 'Under 5% of players',
+    plain: [
+      `${SAMPLES.platinum.globalPercent}% of players`,
+      'Shows the share of players who have it',
+    ],
+  },
   {
     sample: 'progress',
     label: 'Progress',
     description: 'Partial progress toward an achievement',
+    plain: ['Progress', 'Partial progress toward an achievement'],
   },
 ];
 
@@ -254,19 +295,24 @@ export function Panel({isActive}: PanelProps) {
       </PanelSection>
 
       <PanelSection title="Test Toasts">
-        {TEST_BUTTONS.map((button) => (
-          <PanelSectionRow key={button.sample}>
-            <ButtonItem
-              layout="below"
-              description={button.description}
-              onClick={() => {
-                fireTestAchievement(SAMPLES[button.sample]);
-              }}
-            >
-              {button.label}
-            </ButtonItem>
-          </PanelSectionRow>
-        ))}
+        {TEST_BUTTONS.map((button) => {
+          const [label, description] = settings.rarityEffects
+            ? [button.label, button.description]
+            : button.plain;
+          return (
+            <PanelSectionRow key={button.sample}>
+              <ButtonItem
+                layout="below"
+                description={description}
+                onClick={() => {
+                  fireTestAchievement(SAMPLES[button.sample]);
+                }}
+              >
+                {label}
+              </ButtonItem>
+            </PanelSectionRow>
+          );
+        })}
         <PanelSectionRow>
           <div style={{fontSize: '12px', opacity: 0.7, padding: '4px 0'}}>
             Test toasts go through Steam's own notification system. If nothing
@@ -468,17 +514,41 @@ export function Panel({isActive}: PanelProps) {
         )}
         <PanelSectionRow>
           <ToggleField
-            label="Rarity Effects"
-            description="Gold for rare, diamond for ultra rare unlocks"
+            label="Trophy Tiers"
+            description="Bronze, silver, gold or platinum by how many players have it"
             checked={settings.rarityEffects}
             onChange={(checked) => {
               update({rarityEffects: checked});
             }}
           />
         </PanelSectionRow>
+        {settings.rarityEffects && (
+          <PanelSectionRow>
+            <DropdownItem
+              label="Trophy Reveal"
+              description="How the icon turns into its trophy"
+              rgOptions={REVEAL_OPTIONS}
+              selectedOption={settings.trophyReveal}
+              onChange={(option) => {
+                update({trophyReveal: option.data});
+              }}
+            />
+          </PanelSectionRow>
+        )}
       </PanelSection>
 
-      <PanelSection title="Timing">
+      <PanelSection title="Position & Timing">
+        <PanelSectionRow>
+          <DropdownItem
+            label="Position"
+            description="Moves every Steam notification, not just achievements"
+            rgOptions={POSITION_OPTIONS}
+            selectedOption={settings.position}
+            onChange={(option) => {
+              update({position: option.data});
+            }}
+          />
+        </PanelSectionRow>
         <PanelSectionRow>
           <SliderField
             label="Display Duration"

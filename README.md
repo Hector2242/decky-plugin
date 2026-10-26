@@ -10,18 +10,24 @@ in game.
 
 ## Animations that feel like home
 
-Pick the entrance you grew up with. **Unfold** pops the icon in as an Xbox-style disc, opens the card
-out of it and folds it back up when it leaves. **Drop** settles in from above like on a PlayStation,
-with a sweep of light around the icon. There's also Slide, Pop, Bounce, Fade, Flip and **Retro**, a
-16-bit text box that opens in chunky steps.
+Pick the entrance you grew up with. **Xbox One** pops the achievement icon in as a disc in the
+middle of the toast, then the banner grows out of it while the text slides up, and it all shrinks
+back into the disc when it leaves. **Drop** settles in like on a PlayStation, with a sweep of light
+around the icon. There's also Slide, Pop, Bounce, Fade, Flip and **Retro**, a 16-bit text box that
+opens in chunky steps.
 
-Every entrance comes with its own matching exit, and slides always come in from whichever edge of
-the screen Steam is showing toasts on.
+Every entrance comes with its own matching exit, and they always come in from the nearest edge of
+the screen.
+
+## Position
+
+Put toasts in any corner or in the middle of the top or bottom edge. Steam shows all of its
+notifications in the same spot, so friend and download notifications move there too.
 
 ## Themes
 
 Twelve presets get you started: Xbox, PlayStation, Steam, Nintendo, Gold, Midnight, Sky Day, Sky
-Night, Pixel Day, Pixel Night, Cherry Blossom and Halloween. Each one brings its own colors, shape
+Night, Pixel Day, Pixel Night, Cherry Blossom, Halloween and Hoth. Each one brings its own colors, shape
 and entrance.
 
 ![Pixel Day, Pixel Night, Cherry Blossom, Halloween, Gold and a progress toast](docs/screenshots/themes.png)
@@ -30,15 +36,20 @@ You can also put a little animated scene behind the text, with any theme you lik
 simple sparkle overlay, drifting clouds and a warm sun by day, twinkling stars and a crescent moon
 by night, and 16-bit pixel versions of both with birds, a shooting star and plenty of sparkle.
 Cherry Blossom fills the card with blossoming branches and drifting petals. Halloween is a moonlit
-graveyard with bats, ghosts, a twisted old tree and a row of tombstones. The skies are painted from
+graveyard with bats, ghosts, a twisted old tree and a row of tombstones. Hoth is a snowfield where an
+AT-AT walks and fires red lasers at two X-wings that dive in to attack: one is shot down, the other
+climbs away. The skies are painted from
 your Primary and Secondary colors, so if you change them, the whole scene changes with you.
 
-## Rarity and progress
+## Trophy tiers and progress
 
-Toasts show what share of players have the achievement. Anything under 25% is called out as
-uncommon, under 10% earns a gold ring and glow, and under 1% gets the diamond treatment. When you
-make progress on an achievement without unlocking it yet, the toast shows a progress bar instead of
-the description.
+Toasts show what share of players have the achievement and turn it into a trophy: platinum under
+5%, gold under 15%, silver under 50% and bronze for the rest. Gold and platinum also get a ring of
+light and a glow. Halfway through the toast, the achievement icon turns into its trophy, so each
+gets about half the time on screen, and you can choose how: it can spin, flip like a coin, get eaten from corner
+to corner by a swarm of little pixel aliens, get blasted by lasers and blown apart in a pixel explosion
+or drown in dripping blood that slowly turns into the colors of its tier. You can switch the reveal or the tiers off, and both choices stay put when you switch presets. When you make progress on an achievement
+without unlocking it yet, the toast shows a progress bar instead of the description.
 
 ## Make it yours
 
