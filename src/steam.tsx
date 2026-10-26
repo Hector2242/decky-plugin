@@ -70,6 +70,17 @@ interface PoppedToast {
   eType?: number;
   decky?: boolean;
   nToastDurationMS?: number;
+  notificationID?: number;
+  data?: unknown;
+}
+
+interface AchievementList {
+  data?: {rgAchievements?: Array<{strID?: unknown; bAchieved?: unknown}>};
+}
+
+interface AppLifetimeEvent {
+  unAppID?: number;
+  bRunning?: boolean;
 }
 
 /** A deserialized protobuf message: each field is a getter method. */
@@ -81,7 +92,27 @@ interface ProtoMessage {
 const steamGlobals = globalThis as typeof globalThis & {
   __TOASTER_INSTANCE?: {toastPatch?: {object?: {component?: unknown}}};
   NotificationStore?: NotificationStore;
+  SteamClient?: {
+    Apps?: {
+      GetMyAchievementsForApp?: (appId: string) => Promise<AchievementList>;
+    };
+    GameSessions?: {
+      RegisterForAppLifetimeNotifications?: (
+        callback: (event: AppLifetimeEvent) => void,
+      ) => {unregister?: () => void} | undefined;
+    };
+  };
+  SteamUIStore?: {RunningApps?: Array<{appid?: number}>};
 };
+
+// Each running game's locked achievement ids (Steam's strID, which is also
+// the notification's achievement_id).
+const lockedByApp = new Map<number, Set<string>>();
+// Test notifications that play a game's completing unlock.
+const testCompletions = new Set<number>();
+// Whether the toast Steam popped last completes its game; decided once per
+// toast because deciding also marks its achievement unlocked.
+let poppedCompletion: {notificationID: number; completes: boolean} | undefined;
 
 /** Calls a protobuf getter; a missing or throwing getter reads as undefined. */
 function readField(message: ProtoMessage, field: string): unknown {
@@ -153,7 +184,16 @@ function achievementFromProps(
     const data = first.data as MarkedToastData | undefined;
     return data?.achievementToast ?? null;
   }
-  return group.eType === ACHIEVEMENT_TYPE ? readAchievement(first.data) : null;
+  if (group.eType !== ACHIEVEMENT_TYPE) return null;
+  const achievement = readAchievement(first.data);
+  if (
+    achievement &&
+    first.notificationID !== undefined &&
+    poppedCompletion?.notificationID === first.notificationID
+  ) {
+    achievement.completesGame = poppedCompletion.completes;
+  }
+  return achievement;
 }
 
 function openAchievements(appId: number): void {
@@ -235,6 +275,98 @@ export function installDurationPatch(): () => void {
   };
 }
 
+async function loadLocked(appId: number): Promise<void> {
+  try {
+    const list = (
+      await steamGlobals.SteamClient?.Apps?.GetMyAchievementsForApp?.(
+        String(appId),
+      )
+    )?.data?.rgAchievements;
+    if (!Array.isArray(list) || list.length === 0) return;
+    lockedByApp.set(
+      appId,
+      new Set(list.filter((a) => !a.bAchieved).map((a) => String(a.strID))),
+    );
+  } catch (error: unknown) {
+    console.warn(
+      '[AchievementCustomizer] could not load achievements of',
+      appId,
+      error,
+    );
+  }
+}
+
+// An unlock completes its game when it takes the last id off the locked set.
+function decideCompletion(toast: PoppedToast): boolean {
+  const id = toast.notificationID;
+  if (id !== undefined && testCompletions.delete(id)) return true;
+  const achievement = readAchievement(toast.data);
+  if (!achievement?.achieved) return false;
+  const locked = lockedByApp.get(achievement.appId);
+  return !!locked && locked.delete(achievement.id) && locked.size === 0;
+}
+
+/**
+ * Tracks the achievements each running game still has locked, so the toast of
+ * the one that completes the game shows as platinum. Returns the uninstaller.
+ *
+ * Steam's list takes 90-350 ms to arrive, too late for a toast, so it is
+ * loaded when a game starts and kept current as its toasts pop. Without it
+ * every toast keeps its rarity tier.
+ */
+export function installCompletionTracking(): () => void {
+  const store = steamGlobals.NotificationStore;
+  if (!store || typeof store.PopNextToastNotification !== 'function') {
+    return () => {};
+  }
+  for (const app of steamGlobals.SteamUIStore?.RunningApps ?? []) {
+    if (app.appid) void loadLocked(app.appid);
+  }
+  let lifetime: {unregister?: () => void} | undefined;
+  try {
+    lifetime =
+      steamGlobals.SteamClient?.GameSessions?.RegisterForAppLifetimeNotifications?.(
+        (event) => {
+          if (!event.unAppID) return;
+          if (event.bRunning) {
+            void loadLocked(event.unAppID);
+          } else {
+            lockedByApp.delete(event.unAppID);
+          }
+        },
+      );
+  } catch (error: unknown) {
+    console.warn(
+      '[AchievementCustomizer] game start events unavailable',
+      error,
+    );
+  }
+  const patch = afterPatch(
+    store,
+    'PopNextToastNotification',
+    (...[, popped]: [unknown[], unknown]) => {
+      const toast = popped as PoppedToast | undefined;
+      if (
+        toast &&
+        toast.eType === ACHIEVEMENT_TYPE &&
+        !toast.decky &&
+        toast.notificationID !== undefined
+      ) {
+        poppedCompletion = {
+          notificationID: toast.notificationID,
+          completes: decideCompletion(toast),
+        };
+      }
+      return popped;
+    },
+  );
+  return () => {
+    patch.unpatch();
+    lifetime?.unregister?.();
+    lockedByApp.clear();
+  };
+}
+
 /**
  * Sends a real achievement notification through Steam's own pipeline (same
  * sound, renderer and duration as an unlock) without adding it to the tray.
@@ -262,6 +394,7 @@ export function fireTestAchievement(achievement: ToastAchievement): void {
       });
       const id = store.m_nNextTestNotificationID ?? FIRST_TEST_NOTIFICATION_ID;
       store.m_nNextTestNotificationID = id + 1;
+      if (achievement.completesGame) testCompletions.add(id);
       store.ProcessNotification(
         {...target, fnTray: null},
         {

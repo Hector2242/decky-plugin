@@ -15,7 +15,11 @@ import {
   sanitizeSettings,
   setCurrentSettings,
 } from './settings';
-import {installDurationPatch, installToastRenderPatch} from './steam';
+import {
+  installCompletionTracking,
+  installDurationPatch,
+  installToastRenderPatch,
+} from './steam';
 
 const getSettings = callable<[], Partial<ThemeSettings>>('get_settings');
 
@@ -27,6 +31,7 @@ const SETTINGS_CHANGED = 'settings_changed';
 export default definePlugin(() => {
   const unpatchRender = installToastRenderPatch();
   const unpatchDuration = installDurationPatch();
+  const stopCompletionTracking = installCompletionTracking();
 
   // When Decky reloads the plugin, the Quick Access menu can keep showing the
   // previous copy's panel, whose changes never reach this copy's toast hooks.
@@ -79,6 +84,7 @@ export default definePlugin(() => {
       if (retry) clearInterval(retry);
       unpatchRender();
       unpatchDuration();
+      stopCompletionTracking();
       removeMainWindowCss();
     },
   };

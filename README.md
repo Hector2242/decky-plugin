@@ -43,10 +43,11 @@ your Primary and Secondary colors, so if you change them, the whole scene change
 
 ## Trophy tiers and progress
 
-Toasts show what share of players have the achievement and turn it into a trophy: platinum under
-5%, gold under 15%, silver under 50% and bronze for the rest. Gold and platinum also get a ring of
-light and a glow. Halfway through the toast, the achievement icon turns into its trophy, so each
-gets about half the time on screen, and you can choose how: it can spin, flip like a coin, get eaten from corner
+Toasts show what share of players have the achievement and turn it into a trophy: gold under 15%,
+silver under 50% and bronze for the rest. Platinum is saved for the achievement that completes a
+game (100%), like on PlayStation. Gold and platinum also get a ring of light and a glow. Halfway
+through the toast, the achievement icon turns into its trophy, so each gets about half the time on
+screen, and you can choose how: it can spin, get eaten from corner
 to corner by a swarm of little pixel aliens, get blasted by lasers and blown apart in a pixel explosion
 or drown in dripping blood that slowly turns into the colors of its tier. You can switch the reveal or the tiers off, and both choices stay put when you switch presets. When you make progress on an achievement
 without unlocking it yet, the toast shows a progress bar instead of the description.

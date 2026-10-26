@@ -43,14 +43,7 @@ const ENTRANCE_STYLES = [
   'flip',
   'retro',
 ] as const;
-const TROPHY_REVEALS = [
-  'off',
-  'spin',
-  'coin',
-  'pixels',
-  'bullets',
-  'blood',
-] as const;
+const TROPHY_REVEALS = ['off', 'spin', 'pixels', 'bullets', 'blood'] as const;
 const POSITIONS = [
   'top-left',
   'top-center',
@@ -353,7 +346,6 @@ export const ENTRANCE_OPTIONS = [
 export const REVEAL_OPTIONS = [
   {data: 'off', label: 'Off'},
   {data: 'spin', label: 'Spin'},
-  {data: 'coin', label: 'Coin Flip'},
   {data: 'pixels', label: 'Pixel Eater'},
   {data: 'bullets', label: 'Laser Blast'},
   {data: 'blood', label: 'Blood Drip'},

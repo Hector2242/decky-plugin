@@ -88,6 +88,7 @@ const SAMPLES: Record<SampleName, ToastAchievement> = {
     image: SAMPLE_IMAGE,
     achieved: true,
     globalPercent: 0.6,
+    completesGame: true,
   },
   progress: {
     appId: 0,
@@ -144,7 +145,7 @@ const TEST_BUTTONS: TestButton[] = [
   {
     sample: 'platinum',
     label: 'Platinum',
-    description: 'Under 5% of players',
+    description: 'The last achievement of a game (100%)',
     plain: [
       `${SAMPLES.platinum.globalPercent}% of players`,
       'Shows the share of players who have it',

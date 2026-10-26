@@ -824,11 +824,6 @@ const REVEALS: Record<
     700,
     (start) => flipReveal(180, 700, 'cubic-bezier(0.45, 0, 0.2, 1)', start),
   ],
-  // Five and a half turns that slow down to land on the trophy.
-  coin: [
-    1600,
-    (start) => flipReveal(1980, 1600, 'cubic-bezier(0.3, 0.55, 0.3, 1)', start),
-  ],
   pixels: [EAT_STEPS * EAT_MS, pixelsReveal],
   bullets: [LASER_MS, laserReveal],
   blood: [BLOOD_MS, bloodReveal],

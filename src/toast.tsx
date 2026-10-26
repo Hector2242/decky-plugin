@@ -38,6 +38,8 @@ export interface ToastAchievement {
   /** Global unlock percentage, 0-100. Zero or negative means unknown. */
   globalPercent: number;
   progress?: {min: number; current: number; max: number};
+  /** This unlock was the game's last locked achievement. */
+  completesGame?: boolean;
 }
 
 /** How Steam laid out the toast window around the chosen position. */
@@ -74,9 +76,15 @@ export const ICON_RADIUS: Record<IconShape, string> = {
 };
 
 // PlayStation-like cutoffs on the share of players who have it.
-function rarityTier(globalPercent: number, enabled: boolean): RarityTier {
-  if (!enabled || !(globalPercent > 0)) return 'none';
-  if (globalPercent < 5) return 'platinum';
+// Platinum is only for the unlock that completes the game (100%).
+function rarityTier(
+  achievement: ToastAchievement,
+  enabled: boolean,
+): RarityTier {
+  const {globalPercent} = achievement;
+  if (!enabled) return 'none';
+  if (achievement.achieved && achievement.completesGame) return 'platinum';
+  if (!(globalPercent > 0)) return 'none';
   if (globalPercent < 15) return 'gold';
   if (globalPercent < 50) return 'silver';
   return 'bronze';
@@ -624,7 +632,7 @@ export function AchievementToast({
     };
   }, [mode, edgeOf]);
 
-  const tier = rarityTier(achievement.globalPercent, settings.rarityEffects);
+  const tier = rarityTier(achievement, settings.rarityEffects);
   const css = useMemo(() => buildToastCss(settings, tier), [settings, tier]);
 
   const {progress} = achievement;
