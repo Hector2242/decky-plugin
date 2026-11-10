@@ -20,7 +20,6 @@ import {useEffect, useState} from 'react';
 import {hasDecorationBackground} from './decorations';
 import {ensureMainWindowCss} from './main_window';
 import {
-  type PresetName,
   type ThemeSettings,
   BANNER_STYLE_OPTIONS,
   DECORATION_OPTIONS,
@@ -28,17 +27,17 @@ import {
   ENTRANCE_OPTIONS,
   ICON_SHAPE_OPTIONS,
   POSITION_OPTIONS,
-  PRESETS,
-  PRESET_OPTIONS,
   REVEAL_OPTIONS,
   TOAST_SHAPE_OPTIONS,
+  changeSettings,
   getCurrentSettings,
   hexToHsl,
   hslToHex,
+  presetOptions,
   sanitizeSettings,
   setCurrentSettings,
 } from './settings';
-import {fireTestAchievement} from './steam';
+import {fireTestAchievement, openEditor} from './steam';
 import {type ToastAchievement, AchievementToast} from './toast';
 
 const getSettings = callable<[], Partial<ThemeSettings>>('get_settings');
@@ -46,7 +45,8 @@ const saveSettings = callable<[settings: ThemeSettings], boolean>(
   'save_settings',
 );
 
-const SAMPLE_IMAGE =
+/** A Steam achievement image for samples and test toasts. */
+export const SAMPLE_IMAGE =
   'https://shared.steamstatic.com/community_assets/images/apps/22380/ee1e9636c2b7d5add9123ef556c80fdd87ba1669.jpg';
 
 type SampleName = 'unlock' | 'silver' | 'gold' | 'platinum' | 'progress';
@@ -228,8 +228,24 @@ export function Panel({isActive}: PanelProps) {
     if (visible) {
       setSteamReducesMotion(window.matchMedia(REDUCED_MOTION).matches);
       setOpens((count) => count + 1);
+      // Achievement Creation may have changed them while this stayed mounted.
+      if (isActive()) {
+        setSettings(getCurrentSettings());
+      } else {
+        refreshFromBackend();
+      }
     }
   }, [visible]);
+
+  const refreshFromBackend = () => {
+    getSettings()
+      .then((stored) => {
+        setSettings(sanitizeSettings(stored));
+      })
+      .catch((error: unknown) => {
+        console.error('[AchievementCustomizer] Failed to load settings', error);
+      });
+  };
 
   useEffect(() => {
     getSettings()
@@ -248,21 +264,35 @@ export function Panel({isActive}: PanelProps) {
       });
   }, []);
 
+  // Built-in presets never change: edits to their look turn into Custom, and
+  // edits to one of the user's presets save into it.
   const update = (partial: Partial<ThemeSettings>) => {
-    const next = sanitizeSettings({...settings, ...partial});
+    if (!isActive()) {
+      // Decky keeps an unloaded copy's panel after an update; its settings can
+      // be stale (presets made since), so the change goes onto the stored ones.
+      // Its CSS would never be removed: the settings_changed broadcast reaches
+      // the loaded copy instead.
+      getSettings()
+        .then((stored) => {
+          const next = changeSettings(sanitizeSettings(stored), partial);
+          setSettings(next);
+          return saveSettings(next);
+        })
+        .catch((error: unknown) => {
+          console.error(
+            '[AchievementCustomizer] Failed to save settings',
+            error,
+          );
+        });
+      return;
+    }
+    const next = changeSettings(settings, partial);
     setSettings(next);
     saveSettings(next).catch((error: unknown) => {
       console.error('[AchievementCustomizer] Failed to save settings', error);
     });
-    // An unloaded copy's CSS would never be removed; the backend's
-    // settings_changed broadcast reaches the loaded copy instead.
-    if (!isActive()) return;
     setCurrentSettings(next);
     ensureMainWindowCss(next);
-  };
-
-  const applyPreset = (preset: PresetName) => {
-    update(preset === 'custom' ? {preset} : {preset, ...PRESETS[preset]});
   };
 
   if (!loaded) return null;
@@ -327,12 +357,21 @@ export function Panel({isActive}: PanelProps) {
         <PanelSectionRow>
           <DropdownItem
             label="Preset"
-            rgOptions={PRESET_OPTIONS}
+            rgOptions={presetOptions(settings)}
             selectedOption={settings.preset}
             onChange={(option) => {
-              applyPreset(option.data);
+              update({preset: option.data});
             }}
           />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            description="Make your own layout, trophy labels, trophy image and sound, and save them as presets"
+            onClick={openEditor}
+          >
+            Achievement Creation
+          </ButtonItem>
         </PanelSectionRow>
       </PanelSection>
 
@@ -342,7 +381,7 @@ export function Panel({isActive}: PanelProps) {
             color={settings.primaryColor}
             label="Primary"
             onChange={(color) => {
-              update({primaryColor: color, preset: 'custom'});
+              update({primaryColor: color});
             }}
           />
         </PanelSectionRow>
@@ -351,7 +390,7 @@ export function Panel({isActive}: PanelProps) {
             color={settings.secondaryColor}
             label="Secondary"
             onChange={(color) => {
-              update({secondaryColor: color, preset: 'custom'});
+              update({secondaryColor: color});
             }}
           />
         </PanelSectionRow>
@@ -360,7 +399,7 @@ export function Panel({isActive}: PanelProps) {
             color={settings.accentColor}
             label="Accent / Glow"
             onChange={(color) => {
-              update({accentColor: color, preset: 'custom'});
+              update({accentColor: color});
             }}
           />
         </PanelSectionRow>
@@ -369,7 +408,7 @@ export function Panel({isActive}: PanelProps) {
             color={settings.textColor}
             label="Title Text"
             onChange={(color) => {
-              update({textColor: color, preset: 'custom'});
+              update({textColor: color});
             }}
           />
         </PanelSectionRow>
@@ -378,7 +417,7 @@ export function Panel({isActive}: PanelProps) {
             color={settings.descColor}
             label="Description Text"
             onChange={(color) => {
-              update({descColor: color, preset: 'custom'});
+              update({descColor: color});
             }}
           />
         </PanelSectionRow>
@@ -449,7 +488,7 @@ export function Panel({isActive}: PanelProps) {
           <PanelSectionRow>
             <ToggleField
               label="Animate anyway"
-              description="Steam's Reduce Motion is on, so toasts use simple fades. Turn this on for full animations."
+              description="Steam's Reduce Motion is on. Turn this off and toasts use simple fades instead of full animations."
               checked={settings.ignoreReducedMotion}
               onChange={(checked) => {
                 update({ignoreReducedMotion: checked});
@@ -566,12 +605,27 @@ export function Panel({isActive}: PanelProps) {
         </PanelSectionRow>
       </PanelSection>
 
+      <PanelSection title="Screenshots">
+        <PanelSectionRow>
+          <ToggleField
+            label="Screenshot on Unlock"
+            description="Saves a picture of your game with the pop-up to Pictures › Achievement Screenshots. Test toasts take one too."
+            checked={settings.screenshotOnUnlock}
+            onChange={(checked) => {
+              update({screenshotOnUnlock: checked});
+            }}
+          />
+        </PanelSectionRow>
+      </PanelSection>
+
       <PanelSection title="Reset">
         <PanelSectionRow>
           <ButtonItem
             layout="below"
             onClick={() => {
-              update(DEFAULT_SETTINGS);
+              // The user's own presets are kept.
+              const {userPresets, ...defaults} = DEFAULT_SETTINGS;
+              update(defaults);
             }}
           >
             Reset to Default

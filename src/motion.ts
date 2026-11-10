@@ -111,10 +111,10 @@ const ACCELERATE = 'cubic-bezier(0.4, 0, 1, 1)';
 const ACCELERATE_HARD = 'cubic-bezier(0.55, 0, 1, 0.45)';
 const DECELERATE = 'cubic-bezier(0, 0.55, 0.45, 1)';
 const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
-// Unfold's disc around the icon; --ac-disc-x/--ac-disc-r follow the compact
-// layout.
+// Unfold's disc around the icon; --ac-disc-x/-y/-r follow the compact or a
+// custom layout.
 const DISC_CLIP =
-  'inset(calc(50% - var(--ac-disc-r)) calc(100% - var(--ac-disc-x) - var(--ac-disc-r)) calc(50% - var(--ac-disc-r)) calc(var(--ac-disc-x) - var(--ac-disc-r)) round var(--ac-disc-r))';
+  'inset(calc(var(--ac-disc-y) - var(--ac-disc-r)) calc(100% - var(--ac-disc-x) - var(--ac-disc-r)) calc(100% - var(--ac-disc-y) - var(--ac-disc-r)) calc(var(--ac-disc-x) - var(--ac-disc-r)) round var(--ac-disc-r))';
 // Negative insets keep the glow inside the clip.
 const OPEN_CLIP = 'inset(-48px round var(--ac-radius))';
 // Moves the card so its icon disc sits at the card's centre.
@@ -135,7 +135,7 @@ const ENTRANCES: Record<EntranceStyle, EntranceMotion> = {
   unfold: {
     card: ['ac-in-unfold 1100ms both'],
     enter: `
-      .ac-in-unfold { transform-origin: var(--ac-disc-x) 50%; }
+      .ac-in-unfold { transform-origin: var(--ac-disc-x) var(--ac-disc-y); }
       .ac-in-unfold .ac-text { animation: ${TEXT_RISE}; }
       .ac-in-unfold .ac-icon::before, .ac-in-unfold .ac-icon::after {
         content: "";
@@ -186,7 +186,7 @@ const ENTRANCES: Record<EntranceStyle, EntranceMotion> = {
         from { opacity: 0; transform: translateY(14px); }
       }`,
     exit: 'ac-out-unfold 460ms',
-    exitRoot: 'transform-origin: var(--ac-disc-x) 50%;',
+    exitRoot: 'transform-origin: var(--ac-disc-x) var(--ac-disc-y);',
     exitRules: `
       ${LIVE_TOAST} .ac-in-unfold .ac-text {
         animation:
@@ -431,6 +431,7 @@ export function motionCss(style: EntranceStyle | null): MotionParts {
     always: `
       .ac-toast {
         --ac-disc-x: 38px;
+        --ac-disc-y: 50%;
         --ac-disc-r: 32px;
         --ac-fall: 18px;
         --ac-side: 1;
@@ -521,7 +522,9 @@ const EAT_STEPS = 16;
 const EAT_MS = 70;
 // Row r of the staircase covers r + 9 of its 16 columns. Gradients, unlike an
 // image mask, apply from the first frame: Chrome paints an undecoded mask image
-// as no mask, which showed the trophy early under Retro's hidden icon.
+// as no mask, which showed the trophy early under Retro's hidden icon. Rows
+// overlap by 1px: an eighth of a custom icon size, or of a zoomed preview, is
+// not a whole device pixel, and the seams showed the icon through the trophy.
 const STAIR_ROWS = [...Array(8).keys()];
 // Two frames: antennae and legs wiggle while the mouth chomps.
 const ALIEN_CHOMP = ['#...#', '.###.', '#E#E#', '##M##', '.#.#.'];
@@ -569,7 +572,7 @@ function pixelsReveal(start: number): string {
     ${REVEAL_TROPHY} {
       -webkit-mask-image: ${STAIR_ROWS.map(() => SOLID).join(', ')};
       -webkit-mask-repeat: no-repeat;
-      -webkit-mask-size: ${STAIR_ROWS.map((row) => `calc(${eighth} * ${row + 9}) calc(${eighth})`).join(', ')};
+      -webkit-mask-size: ${STAIR_ROWS.map((row) => `calc(${eighth} * ${row + 9}) calc(${eighth} + 1px)`).join(', ')};
       animation: ac-eaten ${EAT_STEPS * EAT_MS}ms steps(${EAT_STEPS}, end) ${start}ms both;
     }
     @keyframes ac-eaten {
@@ -817,7 +820,7 @@ function bloodReveal(start: number, durationMs: number): string {
 // Each reveal's length (ms, from its start until the trophy is at rest) and
 // its CSS for a start time and the toast's display time.
 const REVEALS: Record<
-  Exclude<TrophyReveal, 'off'>,
+  Exclude<TrophyReveal, 'off' | 'trophy'>,
   [number, (start: number, durationMs: number) => string]
 > = {
   spin: [
@@ -838,7 +841,10 @@ export function revealCss(
   style: TrophyReveal,
   durationMs: number,
 ): MotionParts {
-  if (style === 'off') return {always: '', full: '', reduced: ''};
+  // With the trophy alone, the trophy simply covers the icon from the start.
+  if (style === 'off' || style === 'trophy') {
+    return {always: '', full: '', reduced: ''};
+  }
   const [length, css] = REVEALS[style];
   // Centred in the display time so the icon and the trophy each show for
   // about half of it, but never before the entrance has settled.

@@ -11,6 +11,7 @@ import {
   useState,
 } from 'react';
 
+import {useAsset} from './assets';
 import {
   DecorationLayer,
   decorationBackground,
@@ -20,9 +21,15 @@ import {
 import {type MotionParts, motionCss, revealCss} from './motion';
 import {
   type IconShape,
+  type LayoutPart,
   type ThemeSettings,
+  type ToastLayout,
+  CARD_BORDER,
+  CARD_WIDTH,
   hexToRgbTriplet,
   isLightColor,
+  lineHeight,
+  partBox,
   sanitizeSettings,
 } from './settings';
 import {TrophyIcon} from './trophy_icon';
@@ -50,7 +57,8 @@ export interface ToastEdge {
   mirrored: boolean;
 }
 
-type RarityTier = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
+/** No tier, or the trophy tier an unlock earned. */
+export type RarityTier = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
 
 interface AchievementToastProps {
   achievement: ToastAchievement;
@@ -66,6 +74,8 @@ interface AchievementToastProps {
    */
   edgeOf?: (root: HTMLElement) => ToastEdge | null;
   onActivate?: () => void;
+  /** Called once a live toast is on screen: its window has its real size. */
+  onShown?: () => void;
 }
 
 /** Corner radius of the achievement icon for each icon shape. */
@@ -90,7 +100,8 @@ function rarityTier(
   return 'bronze';
 }
 
-const UNLOCK_LABEL: Record<RarityTier, string> = {
+/** The built-in text above the title of each tier's unlock. */
+export const UNLOCK_LABEL: Record<RarityTier, string> = {
   none: 'Achievement unlocked',
   bronze: 'Bronze trophy',
   silver: 'Silver trophy',
@@ -196,6 +207,15 @@ function rarityCss(tier: RarityTier, lightCard: boolean): MotionParts {
       );
     }
     .ac-trophy svg { width: 70%; height: 70%; overflow: visible; }
+    .ac-icon .ac-trophy img {
+      width: 74%;
+      height: 74%;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: none;
+      object-fit: contain;
+    }
     .ac-t-base { fill: var(--ac-tier); }
     .ac-t-light { fill: var(--ac-tier-light); }
     .ac-t-dark { fill: var(--ac-tier-dark); }
@@ -393,11 +413,15 @@ function baseCss(settings: ThemeSettings, tier: RarityTier): MotionParts {
         background: rgb(0 0 0 / 0.3);
         ${iconBorder}
       }
+      /* Shown when the image fails (offline): opaque, or the scene behind
+         shows through and the badge floats over it. */
       .ac-icon-fallback {
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--ac-accent);
+        background: #15161a;
+        background: color-mix(in srgb, var(--ac-primary) 35%, #0b0c10);
       }
       .ac-icon-fallback svg { width: 60%; height: 60%; fill: currentColor; }
       .ac-ring {
@@ -515,6 +539,16 @@ function baseCss(settings: ThemeSettings, tier: RarityTier): MotionParts {
         transform-origin: left;
       }
       .ac-count { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
+      /* A custom layout places each part itself (inline left/top/size). */
+      .ac-free .ac-card { display: block; min-height: 0; padding: 0; }
+      .ac-free .ac-icon, .ac-free .ac-text > * { position: absolute; }
+      .ac-free .ac-text { position: absolute; inset: 0; display: block; }
+      .ac-free .ac-text > * { box-sizing: border-box; }
+      .ac-free .ac-badge svg { width: 100%; height: 100%; }
+      .ac-free .ac-pill { font-size: 0.9em; line-height: inherit; }
+      /* Drawn at the live width, then zoomed to the space it has. */
+      .ac-preview.ac-free { width: ${CARD_WIDTH}px; }
       ${shine.always}`,
     full: `
       .ac-fill {
@@ -558,7 +592,7 @@ export function buildToastCss(
     @media (prefers-reduced-motion: reduce) {${join('reduced')}}`;
 }
 
-function cssTokens(settings: ThemeSettings): CSSProperties {
+function cssTokens(settings: ThemeSettings, free: boolean): CSSProperties {
   const tokens: Record<string, string> = {
     '--ac-primary': settings.primaryColor,
     '--ac-primary-rgb': hexToRgbTriplet(settings.primaryColor),
@@ -570,8 +604,30 @@ function cssTokens(settings: ThemeSettings): CSSProperties {
     '--ac-radius': `${settings.borderRadius}px`,
     '--ac-icon-radius': ICON_RADIUS[settings.iconShape],
   };
+  if (free) {
+    // Reveals size their sprites by the icon; Xbox One's disc rings it.
+    const {x, y, size} = settings.layout.icon;
+    tokens['--ac-icon-size'] = `${size}px`;
+    tokens['--ac-disc-x'] = `${CARD_BORDER + x + size / 2}px`;
+    tokens['--ac-disc-y'] = `${CARD_BORDER + y + size / 2}px`;
+    tokens['--ac-disc-r'] = `${size / 2 + 8}px`;
+  }
   // CSSProperties has no index signature for custom properties.
   return tokens as CSSProperties;
+}
+
+// Inline position and size of a part in a custom layout.
+function partStyle(layout: ToastLayout, part: LayoutPart): CSSProperties {
+  const {left, top, width, height} = partBox(layout, part);
+  if (part === 'icon' || part === 'badge') return {left, top, width, height};
+  const {size} = layout[part];
+  return {
+    left,
+    top,
+    width,
+    fontSize: size,
+    lineHeight: `${lineHeight(part, size)}px`,
+  };
 }
 
 /** Renders one achievement toast with the given theme. */
@@ -581,6 +637,7 @@ export function AchievementToast({
   mode,
   edgeOf,
   onActivate,
+  onShown,
 }: AchievementToastProps) {
   const settings = useMemo(() => sanitizeSettings(rawSettings), [rawSettings]);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -588,6 +645,16 @@ export function AchievementToast({
   const [windowFlags, setWindowFlags] = useState<string | null>('');
   const [compact, setCompact] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  // Steam's compact 80px window keeps the standard layout.
+  const free = settings.layout.custom && !compact;
+
+  // A custom layout is drawn at the live width, so a preview scales it to the
+  // space it gets (narrower in Quick Access, larger in Achievement Creation).
+  useLayoutEffect(() => {
+    const width = rootRef.current?.parentElement?.clientWidth ?? 0;
+    if (mode === 'preview' && free && width > 0) setZoom(width / CARD_WIDTH);
+  }, [mode, free]);
 
   // Runs before first paint so the card already sits right in Steam's window,
   // and knows whether that window is the stock 80px one.
@@ -616,6 +683,7 @@ export function AchievementToast({
     const view = root.ownerDocument.defaultView;
     if (!view) return;
     let restart = view.innerHeight < minWindowHeight;
+    if (!restart) onShown?.();
     const onResize = () => {
       if (view.innerHeight < minWindowHeight) return;
       measure();
@@ -625,6 +693,7 @@ export function AchievementToast({
         animation.cancel();
         animation.play();
       }
+      onShown?.();
     };
     view.addEventListener('resize', onResize);
     return () => {
@@ -633,7 +702,18 @@ export function AchievementToast({
   }, [mode, edgeOf]);
 
   const tier = rarityTier(achievement, settings.rarityEffects);
-  const css = useMemo(() => buildToastCss(settings, tier), [settings, tier]);
+  const trophyUrl = useAsset(
+    tier === 'none' ? '' : settings.trophyImages[tier],
+  );
+  // The stylesheet ignores the layout, labels and saved presets: dragging a
+  // part in Achievement Creation only changes inline styles.
+  const cssKey = JSON.stringify({
+    ...settings,
+    layout: null,
+    labels: null,
+    userPresets: null,
+  });
+  const css = useMemo(() => buildToastCss(settings, tier), [cssKey, tier]);
 
   const {progress} = achievement;
   const shownProgress =
@@ -665,6 +745,7 @@ export function AchievementToast({
   if (mode === 'preview') classes.push('ac-preview');
   if (revealing) classes.push('ac-reveal');
   if (compact) classes.push('ac-compact');
+  if (free) classes.push('ac-free');
   if (tier !== 'none') classes.push(`ac-${tier}`);
   if (hasDecorationBackground(settings.decorativeElements)) {
     classes.push('ac-decoration-space');
@@ -678,19 +759,33 @@ export function AchievementToast({
         {formatPercent(achievement.globalPercent)}
       </span>
     ) : null;
+  const label = achievement.achieved
+    ? settings.labels[tier].trim() || UNLOCK_LABEL[tier]
+    : 'Achievement progress';
+  const {layout} = settings;
+  const shown = (part: LayoutPart): boolean => !free || layout[part].show;
+  const at = (part: LayoutPart): CSSProperties | undefined =>
+    free ? partStyle(layout, part) : undefined;
 
   return (
     <div
       ref={rootRef}
       className={classes.join(' ')}
       data-edge={edge}
-      style={cssTokens(settings)}
+      style={
+        free && mode === 'preview'
+          ? {...cssTokens(settings, free), zoom}
+          : cssTokens(settings, free)
+      }
       onClick={onActivate}
     >
       <style>{css}</style>
-      <div className={cardClass}>
+      <div
+        className={cardClass}
+        style={free ? {height: layout.height} : undefined}
+      >
         <DecorationLayer variant={settings.decorativeElements} />
-        <div className="ac-icon">
+        <div className="ac-icon" style={at('icon')}>
           {/* Reveals animate this wrapper, so a late image failure that swaps
               in the badge does not restart them. */}
           <div className="ac-face">
@@ -711,31 +806,40 @@ export function AchievementToast({
           {revealing ? (
             <>
               <div className="ac-trophy">
-                <TrophyIcon />
+                {trophyUrl ? <img src={trophyUrl} alt="" /> : <TrophyIcon />}
               </div>
               {/* Reveal sprites; Blood and Laser Blast use all eight. */}
-              <span className="ac-reveal-fx">
-                {[...Array(8).keys()].map((n) => (
-                  <i key={n} />
-                ))}
-              </span>
+              {settings.trophyReveal === 'trophy' ? null : (
+                <span className="ac-reveal-fx">
+                  {[...Array(8).keys()].map((n) => (
+                    <i key={n} />
+                  ))}
+                </span>
+              )}
             </>
           ) : null}
           <div className="ac-ring" />
         </div>
         <div className="ac-text">
-          <div className="ac-eyebrow">
-            <Badge />
-            <span className="ac-eyebrow-label">
-              {achievement.achieved
-                ? UNLOCK_LABEL[tier]
-                : 'Achievement progress'}
-            </span>
-            {pill}
+          {/* A custom layout places the badge on its own. */}
+          {free && shown('badge') ? (
+            <div className="ac-eyebrow ac-badge" style={at('badge')}>
+              <Badge />
+            </div>
+          ) : null}
+          {shown('label') ? (
+            <div className="ac-eyebrow" style={at('label')}>
+              {free ? null : <Badge />}
+              <span className="ac-eyebrow-label">{label}</span>
+              {pill}
+            </div>
+          ) : null}
+          <div className="ac-title" style={at('title')}>
+            {achievement.name}
           </div>
-          <div className="ac-title">{achievement.name}</div>
-          {shownProgress ? (
-            <div className="ac-progress">
+          {/* Progress takes the description's place. */}
+          {shown('desc') && shownProgress ? (
+            <div className="ac-progress" style={at('desc')}>
               <div className="ac-bar">
                 <div className="ac-fill" style={{width: `${fillPercent}%`}} />
               </div>
@@ -744,9 +848,12 @@ export function AchievementToast({
                 {formatCount(shownProgress.max)}
               </span>
             </div>
-          ) : (
-            <div className="ac-desc">{achievement.description}</div>
-          )}
+          ) : null}
+          {shown('desc') && !shownProgress ? (
+            <div className="ac-desc" style={at('desc')}>
+              {achievement.description}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
