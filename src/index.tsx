@@ -3,35 +3,47 @@ import {
   callable,
   definePlugin,
   removeEventListener,
+  routerHook,
 } from '@decky/api';
 import {staticClasses} from '@decky/ui';
 
+import {loadAsset} from './assets';
+import {Editor} from './editor';
 import {ensureMainWindowCss, removeMainWindowCss} from './main_window';
 import {PaletteIcon} from './palette_icon';
 import {Panel} from './panel';
 import {
   type ThemeSettings,
+  SETTINGS_CHANGED,
   getCurrentSettings,
   sanitizeSettings,
   setCurrentSettings,
 } from './settings';
 import {
+  EDITOR_ROUTE,
   installCompletionTracking,
   installDurationPatch,
+  installSoundPatch,
   installToastRenderPatch,
 } from './steam';
 
 const getSettings = callable<[], Partial<ThemeSettings>>('get_settings');
 
 const CSS_RETRY_MS = 5000;
-// Sent by main.py after every save.
-const SETTINGS_CHANGED = 'settings_changed';
+
+// Imported files load ahead of the next toast, which needs them at once.
+function preloadAssets(settings: ThemeSettings): void {
+  for (const name of Object.values(settings.trophyImages)) void loadAsset(name);
+  void loadAsset(settings.customSound);
+}
 
 // Decky Loader loads a plugin through the bundle's default export.
 export default definePlugin(() => {
   const unpatchRender = installToastRenderPatch();
   const unpatchDuration = installDurationPatch();
   const stopCompletionTracking = installCompletionTracking();
+  const unpatchSound = installSoundPatch();
+  routerHook.addRoute(EDITOR_ROUTE, Editor, {exact: true});
 
   // When Decky reloads the plugin, the Quick Access menu can keep showing the
   // previous copy's panel, whose changes never reach this copy's toast hooks.
@@ -39,6 +51,7 @@ export default definePlugin(() => {
   const onSettingsChanged = (stored: Partial<ThemeSettings>) => {
     setCurrentSettings(sanitizeSettings(stored));
     ensureMainWindowCss(getCurrentSettings());
+    preloadAssets(getCurrentSettings());
   };
   addEventListener<[settings: Partial<ThemeSettings>]>(
     SETTINGS_CHANGED,
@@ -58,6 +71,7 @@ export default definePlugin(() => {
   getSettings()
     .then((stored) => {
       setCurrentSettings(sanitizeSettings(stored));
+      preloadAssets(getCurrentSettings());
     })
     .catch((error: unknown) => {
       console.error('[AchievementCustomizer] Failed to load settings', error);
@@ -85,6 +99,8 @@ export default definePlugin(() => {
       unpatchRender();
       unpatchDuration();
       stopCompletionTracking();
+      unpatchSound();
+      routerHook.removeRoute(EDITOR_ROUTE);
       removeMainWindowCss();
     },
   };

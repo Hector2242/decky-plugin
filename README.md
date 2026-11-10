@@ -49,7 +49,7 @@ game (100%), like on PlayStation. Gold and platinum also get a ring of light and
 through the toast, the achievement icon turns into its trophy, so each gets about half the time on
 screen, and you can choose how: it can spin, get eaten from corner
 to corner by a swarm of little pixel aliens, get blasted by lasers and blown apart in a pixel explosion
-or drown in dripping blood that slowly turns into the colors of its tier. You can switch the reveal or the tiers off, and both choices stay put when you switch presets. When you make progress on an achievement
+or drown in dripping blood that slowly turns into the colors of its tier. **Show trophy only** skips the icon and shows the trophy right away. You can switch the reveal or the tiers off, and both choices stay put when you switch presets. When you make progress on an achievement
 without unlocking it yet, the toast shows a progress bar instead of the description.
 
 ## Make it yours
@@ -64,8 +64,43 @@ The preview at the top replays your changes as you make them. The test buttons s
 achievement notifications through Steam, so you see and hear exactly what an unlock will look like
 without anything piling up in your notification tray.
 
-If you've turned on Reduce Motion in Steam (Settings › Accessibility), toasts fade gently instead of
-moving around. Switch on **Animate anyway** in the plugin if you'd still like the full animations.
+Toasts play their full animations by default, even with Reduce Motion on in Steam (Settings ›
+Accessibility). Turn off **Animate anyway** in the plugin if you'd rather have them fade gently.
+
+## Achievement Creation
+
+Want a different layout, like the PS3's trophy icon, "You have earned a trophy" on top and a cup next
+to the title? Tap **Achievement Creation** in the Quick Access menu to open a full-screen editor with
+the toast blown up over a grid. Tap a part (icon, badge, label, title, description or the card
+itself) to select it, drag it along the grid with a finger and pinch to make it bigger or smaller.
+The sliders below set exact sizes and positions, and you can tap their numbers to type a value, so
+everything also works with the controller when your Deck is docked. The badge, label and
+description can be hidden. **Reset layout** brings back the standard one.
+
+From the same page you can:
+
+- rename the line above the title for each tier ("Bronze trophy", "Achievement unlocked" and so on),
+- replace the trophy the icon turns into with your own picture, a different one for bronze, silver,
+  gold and platinum if you like (PNG, JPG, WebP or GIF up to 1 MB; Trophy Reveal has to be on),
+- play your own sound instead of Steam's achievement sound (MP3, OGG or WAV up to 2 MB). It follows
+  Steam's own setting for notification sounds and stops when the toast leaves.
+
+### Your own presets
+
+The built-in presets (Xbox, PlayStation, Hoth and the rest) never change. If you tweak anything
+while one of them is picked, the preset list shows **Custom** and the built-in one stays exactly as
+it was. To keep your version, tap **Save as new preset** in Achievement Creation and give it a name:
+it becomes your very own preset, listed in the Quick Access preset menu next to the built-in ones.
+While your preset is picked, every change saves into it, and you can rename or delete it there too.
+Picking a built-in preset always brings back its original look.
+
+## Screenshot on unlock
+
+Turn on **Screenshot on Unlock** in the Quick Access menu and every unlock saves a picture of your
+game with the achievement pop-up on it, named after the game and the achievement, in
+`Pictures/Achievement Screenshots`. Steam doesn't let plugins add pictures to its own Media, so they
+stay in that folder: open it in Desktop Mode or copy it to your PC. Test toasts take one too, so you
+can check it works.
 
 ## Compatibility
 

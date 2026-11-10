@@ -3,7 +3,7 @@
  * access is optional and failures fall back to stock Steam behavior.
  */
 
-import {type ToastData, toaster} from '@decky/api';
+import {type ToastData, callable, toaster} from '@decky/api';
 import {
   ErrorBoundary,
   Navigation,
@@ -14,6 +14,7 @@ import {
 } from '@decky/ui';
 import {createElement} from 'react';
 
+import {assetUrl} from './assets';
 import {ensureMainWindowCss, mainDocument} from './main_window';
 import {type ToastPosition, getCurrentSettings} from './settings';
 import {type ToastAchievement, type ToastEdge, AchievementToast} from './toast';
@@ -45,6 +46,9 @@ interface NotificationStore {
     updateKind: number,
   ) => void;
   PopNextToastNotification?: (appId: number) => unknown;
+  PlayNotificationSound?: (toast: unknown) => void;
+  /** The sound Steam would play for a toast, or a falsy value for none. */
+  ChooseSound?: (target: unknown, toast: unknown) => unknown;
   m_nNextTestNotificationID?: number;
 }
 
@@ -103,7 +107,47 @@ const steamGlobals = globalThis as typeof globalThis & {
     };
   };
   SteamUIStore?: {RunningApps?: Array<{appid?: number}>};
+  appStore?: {
+    GetAppOverviewByAppID?: (appId: number) => {display_name?: string} | null;
+  };
 };
+
+const takeScreenshot = callable<[name: string], string>('take_screenshot');
+// By then every entrance has settled, so the pop-up is fully on screen.
+const SCREENSHOT_DELAY_MS = 1500;
+// The unlock last photographed: a toast can render again.
+let lastScreenshot: number | string | undefined;
+
+/**
+ * Saves a picture of the screen, game and pop-up, once an unlock's toast is on
+ * screen, if the user turned it on. Steam puts only the screenshots it takes
+ * itself into its Media, so the backend asks gamescope for one and saves it to
+ * Pictures.
+ */
+function screenshotUnlock(achievement: ToastAchievement, key: number | string) {
+  if (
+    !getCurrentSettings().screenshotOnUnlock ||
+    !achievement.achieved ||
+    key === lastScreenshot
+  ) {
+    return;
+  }
+  lastScreenshot = key;
+  let game: string | undefined;
+  try {
+    game = steamGlobals.appStore?.GetAppOverviewByAppID?.(
+      achievement.appId,
+    )?.display_name;
+  } catch {
+    game = undefined;
+  }
+  const name = game ? `${game} - ${achievement.name}` : achievement.name;
+  setTimeout(() => {
+    takeScreenshot(name).catch((error: unknown) => {
+      console.warn('[AchievementCustomizer] screenshot failed', error);
+    });
+  }, SCREENSHOT_DELAY_MS);
+}
 
 // Each running game's locked achievement ids (Steam's strID, which is also
 // the notification's achievement_id).
@@ -196,8 +240,26 @@ function achievementFromProps(
   return achievement;
 }
 
+// Steam's own route to a game's achievement list; its bare /achievements root
+// renders an empty page on 2026 clients.
 function openAchievements(appId: number): void {
-  if (appId > 0) Navigation.Navigate(`/library/app/${appId}/achievements`);
+  if (appId > 0) {
+    Navigation.Navigate(`/library/app/${appId}/achievements/my/individual`);
+  }
+}
+
+/** Route of the Achievement Creation page. */
+export const EDITOR_ROUTE = '/achievement-customizer/creation';
+
+/** Closes Quick Access and opens the Achievement Creation page. */
+export function openEditor(): void {
+  Navigation.CloseSideMenus();
+  Navigation.Navigate(EDITOR_ROUTE);
+}
+
+/** Leaves the Achievement Creation page. */
+export function closeEditor(): void {
+  Navigation.NavigateBack();
 }
 
 /**
@@ -224,9 +286,11 @@ export function installToastRenderPatch(): () => void {
     ensureMainWindowCss(getCurrentSettings());
     // Keyed per notification so a follow-up toast remounts and replays its
     // entrance.
+    const key =
+      props.group?.notifications?.[0]?.notificationID ?? achievement.id;
     return createElement(
       ErrorBoundary,
-      {key: props.group?.notifications?.[0]?.notificationID ?? achievement.id},
+      {key},
       createElement(AchievementToast, {
         achievement,
         settings: getCurrentSettings(),
@@ -235,6 +299,9 @@ export function installToastRenderPatch(): () => void {
         onActivate: () => {
           openAchievements(achievement.appId);
           props.onDismiss?.();
+        },
+        onShown: () => {
+          screenshotUnlock(achievement, key);
         },
       }),
     );
@@ -272,6 +339,56 @@ export function installDurationPatch(): () => void {
   );
   return () => {
     patch.unpatch();
+  };
+}
+
+/**
+ * Plays the user's imported sound in place of Steam's achievement sound.
+ * Returns the uninstaller.
+ *
+ * Steam plays a toast's sound through PlayNotificationSound as the toast
+ * shows; its ChooseSound applies Steam's own "play a sound" setting.
+ */
+export function installSoundPatch(): () => void {
+  const store = steamGlobals.NotificationStore;
+  if (!store || typeof store.PlayNotificationSound !== 'function') {
+    return () => {};
+  }
+  let playing: HTMLAudioElement | undefined;
+  const patch = replacePatch(
+    store,
+    'PlayNotificationSound',
+    (args: unknown[]) => {
+      const toast = args[0] as PoppedToast | undefined;
+      const settings = getCurrentSettings();
+      const url = assetUrl(settings.customSound);
+      if (!url || toast?.eType !== ACHIEVEMENT_TYPE) return callOriginal;
+      try {
+        const target = store.GetNotificationTargets?.()[ACHIEVEMENT_TYPE];
+        if (store.ChooseSound && !store.ChooseSound(target, toast)) {
+          return undefined;
+        }
+        playing?.pause();
+        const audio = new Audio(url);
+        playing = audio;
+        audio.play().catch((error: unknown) => {
+          console.warn('[AchievementCustomizer] custom sound failed', error);
+          patch.original.call(store, toast);
+        });
+        // A long file stops with its toast.
+        setTimeout(() => {
+          audio.pause();
+        }, settings.duration);
+        return undefined;
+      } catch (error: unknown) {
+        console.warn('[AchievementCustomizer] custom sound failed', error);
+        return callOriginal;
+      }
+    },
+  );
+  return () => {
+    patch.unpatch();
+    playing?.pause();
   };
 }
 
